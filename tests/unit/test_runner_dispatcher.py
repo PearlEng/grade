@@ -5,9 +5,10 @@ All tests use the StubAdapter (no network, no API keys required).
 Coverage:
 - :func:`~runner.dispatcher.load_pack`: valid JSONL, empty file, bad JSON.
 - :func:`~runner.dispatcher.run_task`: single run, multi-run, output validation,
-  C1 score wiring, consistency scoring, result fields.
+  C1 score wiring, C3 calibration wiring, C4 consistency wiring, result fields.
 - :class:`~runner.dispatcher._NullJudge`: always returns 0.5.
-- :func:`~runner.dispatcher._measure_consistency`: identical runs, diverse runs.
+- C3 integration: calibration_limitation_handling driven by validate_claims.
+- C4 integration: consistency driven by score_consistency.
 """
 
 from __future__ import annotations
@@ -15,13 +16,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
 from runner.adapters.stub_adapter import StubAdapter
 from runner.dispatcher import (
     TaskRunResult,
-    _measure_consistency,
     load_pack,
     run_task,
 )
@@ -58,6 +59,60 @@ _VALID_TASK: dict[str, Any] = {
         "structure_usability": {"weight": 0.05},
     },
 }
+
+# Task with no claim lists — C3 should return 1.0 (nothing to violate).
+_TASK_NO_CLAIMS: dict[str, Any] = {
+    "task_id": "T1-OPS-NOCLAIM",
+    "track": 1,
+    "title": "Minimal task",
+    "user_prompt": "What is the total?",
+    "task_type": "retrieval",
+    "allowed_inputs": [],
+    "gold_facts": [],
+    "gold_insights": [],
+    "required_limitations": [],
+    "forbidden_claims": [],
+    "rubric": {
+        "grounding_accuracy": {"weight": 0.35},
+        "insight_quality": {"weight": 0.20},
+        "evidence_linkage": {"weight": 0.15},
+        "calibration_limitation_handling": {"weight": 0.15},
+        "consistency": {"weight": 0.10},
+        "structure_usability": {"weight": 0.05},
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_output(
+    task_id: str = "T1-OPS-001",
+    key_findings: list[str] | None = None,
+    limitations: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return a minimal schema-valid output dict."""
+    return {
+        "task_id": task_id,
+        "model_id": "stub/echo-v1",
+        "run_index": 0,
+        "structured_metrics": {},
+        "key_findings": key_findings or ["analysis complete"],
+        "limitations": limitations or ["no real inference performed"],
+        "evidence_citations": [],
+        "runtime_metadata": {
+            "adapter_version": "0.1.0",
+            "timestamp_utc": "2026-01-01T00:00:00Z",
+            "latency_ms": 1.0,
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "model_temperature": None,
+            "provider": "stub",
+            "pack_id": None,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -216,7 +271,7 @@ class TestRunTask:
         assert result.scores.get("insight_quality") == pytest.approx(0.5)
 
     def test_consistency_is_one_for_single_run(self) -> None:
-        """Consistency must be 1.0 when there is only one run."""
+        """C4 consistency must be 1.0 when there is only one run."""
         adapter = StubAdapter()
         result = run_task(_VALID_TASK, adapter, runs=1)
         assert result.scores.get("consistency") == pytest.approx(1.0)
@@ -230,51 +285,108 @@ class TestRunTask:
 
 
 # ---------------------------------------------------------------------------
-# _measure_consistency tests
+# C3 integration tests — calibration_limitation_handling driven by validate_claims
 # ---------------------------------------------------------------------------
 
 
-class TestMeasureConsistency:
-    """Tests for :func:`_measure_consistency`."""
+class TestC3CalibrationIntegration:
+    """Assert that calibration_limitation_handling comes from C3 validate_claims."""
 
-    def _make_output(self, first_finding: str) -> dict[str, Any]:
-        """Create a minimal output dict with the given first key_finding.
+    def test_no_claims_yields_perfect_calibration(self) -> None:
+        """A task with empty claim lists should score 1.0 calibration (C3 default)."""
+        adapter = StubAdapter()
+        result = run_task(_TASK_NO_CLAIMS, adapter, runs=1)
+        assert result.scores["calibration_limitation_handling"] == pytest.approx(1.0)
 
-        Args:
-            first_finding: First key_finding string.
+    def test_forbidden_claim_present_lowers_calibration(self) -> None:
+        """An output containing a forbidden claim should lower calibration below 1.0."""
+        # The stub output's key_findings contain the task title; we craft a task
+        # whose forbidden_claim matches the stub output text exactly so Stage 1
+        # string-match detects it.
+        task = dict(_VALID_TASK)
+        task = {
+            **_VALID_TASK,
+            "task_id": "T1-OPS-FORBIDDEN",
+            # StubAdapter key_findings = "[stub run 0] Count enrolled students: analysis complete."
+            # We set a forbidden claim that is a substring of that text.
+            "forbidden_claims": ["analysis complete"],
+            "gold_insights": [],
+            "required_limitations": [],
+        }
+        adapter = StubAdapter()
+        result = run_task(task, adapter, runs=1)
+        # C3 detects the forbidden claim → calibration < 1.0
+        assert result.scores["calibration_limitation_handling"] < 1.0
 
-        Returns:
-            A minimal output dict.
-        """
-        return {"key_findings": [first_finding]}
+    def test_required_limitation_missing_lowers_calibration(self) -> None:
+        """An output missing a required limitation should lower calibration below 1.0."""
+        task = {
+            **_VALID_TASK,
+            "task_id": "T1-OPS-LIMIT",
+            "gold_insights": [],
+            "forbidden_claims": [],
+            # Stub limitations = "This is a stub response; no real model inference was performed."
+            # We require something that is NOT in that text.
+            "required_limitations": ["data may be outdated please verify independently"],
+        }
+        adapter = StubAdapter()
+        result = run_task(task, adapter, runs=1)
+        # C3 finds required limitation absent → score < 1.0
+        assert result.scores["calibration_limitation_handling"] < 1.0
 
-    def test_single_output_returns_one(self) -> None:
-        """A single output is trivially consistent (returns 1.0)."""
-        outputs = [self._make_output("hello world")]
-        assert _measure_consistency(outputs) == pytest.approx(1.0)
+    def test_calibration_averaged_across_runs(self) -> None:
+        """calibration_limitation_handling should be the average over all N runs."""
+        # With a deterministic StubAdapter and no claims to violate, each run
+        # produces 1.0 → average is 1.0.
+        adapter = StubAdapter()
+        result = run_task(_TASK_NO_CLAIMS, adapter, runs=3)
+        assert result.scores["calibration_limitation_handling"] == pytest.approx(1.0)
 
-    def test_identical_outputs_return_one(self) -> None:
-        """Identical outputs should return exactly 1.0."""
-        outputs = [self._make_output("the cat sat on the mat")] * 3
-        assert _measure_consistency(outputs) == pytest.approx(1.0)
+    def test_c3_not_c2_drives_calibration(self) -> None:
+        """Changing the judge_client score must not affect calibration when C3 is deterministic."""
+        # A judge that always returns 0.0 should NOT lower calibration for a
+        # task with no claim lists, because C3 deterministic path fires first
+        # and returns 1.0 (no claims → perfect score).
+        mock_judge = MagicMock()
+        mock_judge.judge.return_value = 0.0
 
-    def test_disjoint_outputs_return_zero(self) -> None:
-        """Completely disjoint token sets should yield 0.0."""
-        outputs = [self._make_output("aaa bbb"), self._make_output("ccc ddd")]
-        assert _measure_consistency(outputs) == pytest.approx(0.0)
+        adapter = StubAdapter()
+        result = run_task(_TASK_NO_CLAIMS, adapter, runs=1, judge_client=mock_judge)
+        # C3 returns 1.0 (no claims); judge_client is passed through but
+        # deterministic path resolves all checks without calling judge when
+        # there are no claim lists at all.
+        assert result.scores["calibration_limitation_handling"] == pytest.approx(1.0)
 
-    def test_partial_overlap(self) -> None:
-        """Partial overlap should return a score between 0 and 1."""
-        outputs = [
-            self._make_output("the cat sat"),
-            self._make_output("the dog ran"),
-        ]
-        score = _measure_consistency(outputs)
-        assert 0.0 < score < 1.0
 
-    def test_empty_key_findings(self) -> None:
-        """Outputs with empty key_findings (empty token sets) should return 1.0."""
-        outputs: list[dict[str, Any]] = [{"key_findings": []}, {"key_findings": []}]
-        # Both empty → union=0 → treated as 1.0 similarity.
-        score = _measure_consistency(outputs)
-        assert score == pytest.approx(1.0)
+# ---------------------------------------------------------------------------
+# C4 integration tests — consistency driven by score_consistency
+# ---------------------------------------------------------------------------
+
+
+class TestC4ConsistencyIntegration:
+    """Assert that consistency comes from C4 score_consistency."""
+
+    def test_identical_runs_yield_high_consistency(self) -> None:
+        """Identical outputs across runs should yield consistency close to 1.0."""
+        adapter = StubAdapter()
+        # StubAdapter is deterministic for the same task → all runs identical.
+        result = run_task(_VALID_TASK, adapter, runs=5)
+        # Finding stability and ranking stability will both be 1.0 for identical
+        # outputs; metric variance also 1.0 → overall consistency ≈ 1.0.
+        assert result.scores["consistency"] > 0.9
+
+    def test_consistency_in_unit_interval(self) -> None:
+        """Consistency score must always be in [0, 1]."""
+        adapter = StubAdapter()
+        result = run_task(_VALID_TASK, adapter, runs=3)
+        score = result.scores["consistency"]
+        assert 0.0 <= score <= 1.0
+
+    def test_measure_consistency_removed(self) -> None:
+        """_measure_consistency must NOT be exported from dispatcher."""
+        import runner.dispatcher as disp
+
+        assert not hasattr(disp, "_measure_consistency"), (
+            "_measure_consistency was removed in favour of C4 score_consistency "
+            "but still appears in the module namespace"
+        )

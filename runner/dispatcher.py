@@ -4,8 +4,16 @@ The :func:`run_task` function executes one (task × adapter × N runs) cycle:
 
 1. Calls the adapter ``runs`` times to gather a set of model outputs.
 2. Validates each output against ``output_schema.json``.
-3. Scores each output with the available automated scorers (C1 fact scoring,
-   C2 rubric scoring, C3 claim validation, C4 consistency).
+3. Scores each output with the automated scorers:
+
+   - **C1** (``score_facts``) → ``grounding_accuracy``
+   - **C2** (``score_rubric``) → ``insight_quality``, ``evidence_linkage``,
+     ``structure_usability``
+   - **C3** (``validate_claims``) → ``calibration_limitation_handling``
+     (averaged over the N runs)
+   - **C4** (``score_consistency``) → ``consistency`` (computed once over
+     all N run outputs)
+
 4. Returns a :class:`TaskRunResult` containing all per-run outputs and an
    averaged :class:`DimensionScores` dict ready for aggregation.
 
@@ -26,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from benchmark.rubrics.claim_validation import validate_claims
+from benchmark.rubrics.consistency_scoring import score_consistency
 from benchmark.rubrics.fact_scoring import score_facts
 from benchmark.rubrics.rubric_scoring import RUBRIC_DIMENSIONS, score_rubric
 from benchmark.schemas import validate_output
@@ -177,6 +187,12 @@ def _score_c2_rubric(
 ) -> dict[str, float]:
     """Run C2 rubric scoring and return per-dimension scores.
 
+    Only the C2-owned dimensions are meaningful here:
+    ``insight_quality``, ``evidence_linkage``, and ``structure_usability``.
+    The ``calibration_limitation_handling`` and ``consistency`` values from
+    C2 are overridden by C3 and C4 respectively; ``grounding_accuracy`` is
+    overridden by C1.
+
     Args:
         task: Task definition dict.
         output: Normalized model output dict.
@@ -193,6 +209,27 @@ def _score_c2_rubric(
         return dict(result["dimension_scores"])
     except (ValueError, KeyError):
         return dict.fromkeys(RUBRIC_DIMENSIONS, 0.0)
+
+
+def _score_c3_calibration(
+    task: dict[str, Any],
+    output: dict[str, Any],
+    judge_client: Any,
+) -> float:
+    """Run C3 claim validation and return ``calibration_limitation_handling``.
+
+    Args:
+        task: Task definition dict.
+        output: Normalized model output dict.
+        judge_client: Object satisfying
+            :class:`~benchmark.rubrics.claim_validation.JudgeClientProtocol`.
+            If ``None``, only deterministic Stage 1 matching is used.
+
+    Returns:
+        ``calibration_limitation_handling`` score in [0, 1].
+    """
+    result = validate_claims(task, output, judge_client=judge_client)
+    return result.calibration_limitation_handling
 
 
 def _compute_composite(
@@ -234,15 +271,27 @@ def run_task(
     1. Calls ``adapter.run(task, run_index=i)`` to get a model output.
     2. Validates the output against ``output_schema.json`` (raises on
        violation — the adapter is responsible for returning a valid payload).
-    3. Scores the output using C1 (grounding accuracy via fact scoring) and
-       C2 (rubric scoring via *judge_client*).
-    4. C3 (claim validation) and C4 (cross-run consistency) are collected
-       once all runs are complete.
+    3. Scores the output using:
 
-    After all runs, dimension scores are averaged across repetitions.
-    Consistency (C4) is measured as the fraction of runs whose
-    ``key_findings`` overlap with the majority response (majority defined as
-    the most common first finding).
+       - **C1** ``score_facts`` → ``grounding_accuracy``
+       - **C2** ``score_rubric`` → ``insight_quality``, ``evidence_linkage``,
+         ``structure_usability``
+       - **C3** ``validate_claims`` → ``calibration_limitation_handling``
+         (per run, averaged at the end)
+
+    After all runs, the function calls:
+
+    - **C4** ``score_consistency`` once over all N run outputs → ``consistency``
+
+    Dimension scores are then averaged across repetitions (except
+    ``consistency`` which is a single cross-run measurement).
+
+    Scorer precedence when dimensions overlap:
+
+    - ``grounding_accuracy``: C1 overrides C2.
+    - ``calibration_limitation_handling``: C3 overrides C2.
+    - ``consistency``: C4 overrides C2.
+    - ``insight_quality``, ``evidence_linkage``, ``structure_usability``: C2.
 
     Args:
         task: Task definition dict conforming to ``task_schema.json``.
@@ -251,8 +300,9 @@ def run_task(
         pack_id: Fixture pack identifier to embed in the result.
         judge_client: Object satisfying
             :class:`~benchmark.rubrics.rubric_scoring.JudgeClientProtocol`
-            for C2 rubric scoring.  If ``None``, a null judge (always 0.5)
-            is used.
+            for C2 rubric scoring and C3 claim validation.  If ``None``, a
+            null judge (always 0.5) is used for C2, and C3 runs in
+            deterministic-only mode.
 
     Returns:
         A :class:`TaskRunResult` with all per-run outputs, averaged scores,
@@ -294,18 +344,24 @@ def run_task(
         # --- C2: rubric scoring (all six dimensions) ---
         c2_scores = _score_c2_rubric(task, output, effective_judge)
 
-        # Merge: C1 grounding_accuracy overrides C2's grounding dimension
-        # because C1 is the authoritative automated scorer.
+        # --- C3: claim validation → calibration_limitation_handling ---
+        c3_score = _score_c3_calibration(task, output, judge_client)
+
+        # Merge scores with authoritative-scorer precedence:
+        #   C1 overrides grounding_accuracy
+        #   C3 overrides calibration_limitation_handling
+        #   consistency is set after all runs (C4); placeholder 0.0 here
         run_scores: DimensionScores = dict(c2_scores)
         run_scores["grounding_accuracy"] = c1_score
+        run_scores["calibration_limitation_handling"] = c3_score
 
         per_run_scores.append(run_scores)
 
-    # --- C4: consistency across runs ---
-    # Measure as mean pairwise Jaccard similarity of first key_finding tokens.
-    consistency_score = _measure_consistency(outputs)
+    # --- C4: consistency across all N runs (computed once) ---
+    c4_result = score_consistency(task, outputs)
+    consistency_score: float = c4_result["consistency_score"]
 
-    # Average per-run scores across all runs.
+    # Average per-run scores across all runs, then override consistency from C4.
     avg_scores: DimensionScores = {}
     for dim in RUBRIC_DIMENSIONS:
         if dim == "consistency":
@@ -327,41 +383,3 @@ def run_task(
         composite=composite,
         scorer_flags=all_flags,
     )
-
-
-def _measure_consistency(outputs: list[dict[str, Any]]) -> float:
-    """Measure cross-run consistency as mean pairwise Jaccard on key_findings.
-
-    Tokenises the first ``key_finding`` from each run into a set of
-    lower-cased words and computes the mean Jaccard similarity across all
-    (i, j) pairs.  Returns 1.0 if there is only one run (trivially
-    consistent) or if all runs produce identical findings.
-
-    Args:
-        outputs: List of model output dicts (one per run).
-
-    Returns:
-        Consistency score in [0, 1].
-    """
-    if len(outputs) <= 1:
-        return 1.0
-
-    def _tokens(output: dict[str, Any]) -> frozenset[str]:
-        findings = output.get("key_findings", [])
-        text = findings[0] if findings else ""
-        return frozenset(text.lower().split())
-
-    token_sets = [_tokens(o) for o in outputs]
-    n = len(token_sets)
-    total = 0.0
-    count = 0
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            a, b = token_sets[i], token_sets[j]
-            union = len(a | b)
-            intersection = len(a & b)
-            total += (intersection / union) if union > 0 else 1.0
-            count += 1
-
-    return total / count if count > 0 else 1.0
