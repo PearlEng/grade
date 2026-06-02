@@ -81,6 +81,12 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 exclude = ["docs/", "examples/"]
 
+# Optional model-provider SDKs are not installed in the lint/test CI env
+# (they live in extras); treat their missing stubs as untyped rather than errors.
+[[tool.mypy.overrides]]
+module = ["anthropic.*"]
+ignore_missing_imports = true
+
 # ---------------------------------------------------------------------------
 # Pytest
 # ---------------------------------------------------------------------------
