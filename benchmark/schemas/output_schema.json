@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PearlEng/grade/benchmark/schemas/output_schema.json",
+  "title": "GRADE Normalized Model Output",
+  "description": "Contract for the normalized output produced by any model adapter after running a GRADE task. Scorers (C1–C4) consume this format. The runner adapter is responsible for mapping raw model responses into this structure before scoring.",
+  "type": "object",
+  "required": [
+    "task_id",
+    "model_id",
+    "run_index",
+    "structured_metrics",
+    "key_findings",
+    "limitations",
+    "evidence_citations",
+    "runtime_metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "The task_id from the task definition this output corresponds to.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$"
+    },
+    "model_id": {
+      "type": "string",
+      "description": "Fully qualified model identifier, e.g. 'openrouter/anthropic/claude-opus-4-7' or 'anthropic/claude-sonnet-4-6'.",
+      "minLength": 3
+    },
+    "run_index": {
+      "type": "integer",
+      "description": "0-based repetition index within the (model × task) run set. GRADE uses 5 runs per pair; valid range is 0–4.",
+      "minimum": 0
+    },
+    "structured_metrics": {
+      "type": "object",
+      "description": "Quantitative or categorical values extracted from the model response. Keys are metric names (snake_case); values are the extracted scalars, lists, or objects. This is the primary surface for C1 (Grounding Accuracy) automated fact-checking.",
+      "additionalProperties": {
+        "description": "Any JSON-serializable value: number, string, boolean, array, or object.",
+        "type": ["number", "string", "boolean", "array", "object", "null"]
+      }
+    },
+    "key_findings": {
+      "type": "array",
+      "description": "Ordered list of substantive analytical conclusions in the model's response. Each finding is a complete sentence or short paragraph. The C3 (Insight Quality) scorer evaluates these against gold_insights.",
+      "items": {
+        "type": "string",
+        "minLength": 5
+      },
+      "minItems": 0
+    },
+    "limitations": {
+      "type": "array",
+      "description": "Uncertainty statements, caveats, or data limitations the model explicitly acknowledged. Evaluated by the C3 (Calibration & Limitation Handling) scorer against required_limitations in the task definition.",
+      "items": {
+        "type": "string",
+        "minLength": 5
+      },
+      "minItems": 0
+    },
+    "evidence_citations": {
+      "type": "array",
+      "description": "Explicit references the model made to source data (file names, table names, row ranges, column names, etc.). Evaluated by the C2 (Evidence Linkage) scorer.",
+      "items": {
+        "$ref": "#/$defs/EvidenceCitation"
+      },
+      "minItems": 0
+    },
+    "runtime_metadata": {
+      "$ref": "#/$defs/RuntimeMetadata",
+      "description": "Operational metadata recorded by the adapter. Used for reproducibility and debugging; never exposed as a public scoring dimension."
+    },
+    "raw_response_text": {
+      "type": ["string", "null"],
+      "description": "Optional: verbatim model response text, preserved for human review and manual scoring. May be null if the adapter redacts it for privacy."
+    }
+  },
+  "$defs": {
+    "EvidenceCitation": {
+      "type": "object",
+      "description": "One explicit evidence reference made by the model.",
+      "required": ["citation_text"],
+      "additionalProperties": false,
+      "properties": {
+        "citation_text": {
+          "type": "string",
+          "description": "The exact text of the citation as it appeared in the model output.",
+          "minLength": 3
+        },
+        "source_file": {
+          "type": ["string", "null"],
+          "description": "Fixture file the citation refers to, if identifiable (e.g. 'sessions.csv')."
+        },
+        "source_column": {
+          "type": ["string", "null"],
+          "description": "Column or field name within source_file, if identifiable."
+        },
+        "grounded": {
+          "type": ["boolean", "null"],
+          "description": "Scorer-filled field: true if the citation was verified against the fixture, false if fabricated, null if not yet checked."
+        }
+      }
+    },
+    "RuntimeMetadata": {
+      "type": "object",
+      "description": "Adapter-recorded operational data for reproducibility. Not scored publicly.",
+      "required": ["adapter_version", "timestamp_utc", "latency_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "adapter_version": {
+          "type": "string",
+          "description": "Semantic version of the runner adapter that produced this output, e.g. '0.1.0'.",
+          "minLength": 1
+        },
+        "timestamp_utc": {
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp when the model call completed, e.g. '2026-06-01T12:34:56Z'.",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "latency_ms": {
+          "type": "number",
+          "description": "Wall-clock latency of the model API call in milliseconds.",
+          "minimum": 0
+        },
+        "prompt_tokens": {
+          "type": ["integer", "null"],
+          "description": "Token count of the prompt sent to the model, if available from the provider.",
+          "minimum": 0
+        },
+        "completion_tokens": {
+          "type": ["integer", "null"],
+          "description": "Token count of the model's completion, if available.",
+          "minimum": 0
+        },
+        "model_temperature": {
+          "type": ["number", "null"],
+          "description": "Temperature setting used for the model call. Null if the adapter used the provider default.",
+          "minimum": 0.0,
+          "maximum": 2.0
+        },
+        "provider": {
+          "type": ["string", "null"],
+          "description": "API provider used for the call, e.g. 'openrouter', 'anthropic', 'openai'."
+        },
+        "pack_id": {
+          "type": ["string", "null"],
+          "description": "Fixture pack identifier the task was run against, e.g. 'pack_operations', 'pack_outcomes', 'pack_equity_research'."
+        }
+      }
+    }
+  }
+}

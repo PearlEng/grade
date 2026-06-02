@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PearlEng/grade/benchmark/schemas/task_schema.json",
+  "title": "GRADE Task Definition",
+  "description": "Schema for a single GRADE benchmark task. Tasks are the atomic evaluation unit: one question, one fixture pack, one rubric.",
+  "type": "object",
+  "required": [
+    "task_id",
+    "track",
+    "title",
+    "user_prompt",
+    "task_type",
+    "allowed_inputs",
+    "gold_facts",
+    "gold_insights",
+    "required_limitations",
+    "forbidden_claims",
+    "rubric"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Stable, globally unique identifier for the task. Convention: '<track_abbrev>-<pack_abbrev>-NNN', e.g. 'T1-OPS-001'.",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$"
+    },
+    "track": {
+      "type": "integer",
+      "description": "Benchmark track number (1–5). (1) Grounded Retrieval & Computation, (2) Program Snapshot & Trend, (3) Operational Coaching & Recommendations, (4) Equity & Subgroup Interpretation, (5) Program Effectiveness & Research Reasoning.",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "title": {
+      "type": "string",
+      "description": "Short, human-readable title for the task (displayed in reports and the leaderboard explorer).",
+      "minLength": 5,
+      "maxLength": 200
+    },
+    "user_prompt": {
+      "type": "string",
+      "description": "The exact natural-language prompt sent to the model under evaluation. Must be self-contained when combined with the pack fixture files.",
+      "minLength": 20
+    },
+    "task_type": {
+      "type": "string",
+      "description": "Coarse categorization of the analytical operation required.",
+      "enum": [
+        "retrieval",
+        "computation",
+        "trend_analysis",
+        "snapshot_summary",
+        "recommendation",
+        "subgroup_comparison",
+        "research_reasoning",
+        "limitation_assessment"
+      ]
+    },
+    "allowed_inputs": {
+      "type": "array",
+      "description": "Fixture file names (relative to the pack root) the model is permitted to use when answering. Governs which data is 'in scope' for grounding checks.",
+      "items": {
+        "type": "string",
+        "description": "Relative fixture file path, e.g. 'sessions.csv' or 'program_context.json'."
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "gold_facts": {
+      "type": "array",
+      "description": "Atomic, verifiable factual claims that a correct answer must assert or be consistent with. Each fact is a ground-truth statement computable from the fixture. The C1 (Grounding Accuracy) scorer checks these.",
+      "items": {
+        "$ref": "#/$defs/GoldFact"
+      },
+      "minItems": 0
+    },
+    "gold_insights": {
+      "type": "array",
+      "description": "Higher-level analytical conclusions that a strong answer should reach. These are evaluated by the C3 (Insight Quality) scorer and may reference multiple gold_facts.",
+      "items": {
+        "type": "string",
+        "minLength": 10
+      },
+      "minItems": 0
+    },
+    "required_limitations": {
+      "type": "array",
+      "description": "Limitations, caveats, or uncertainty statements the model MUST acknowledge. Absence is penalized by the C3 (Calibration & Limitation Handling) scorer.",
+      "items": {
+        "type": "string",
+        "minLength": 5
+      },
+      "minItems": 0
+    },
+    "forbidden_claims": {
+      "type": "array",
+      "description": "Claims the model must NOT make (hallucinations, causal over-reach, etc.). Presence is penalized by the C1 scorer.",
+      "items": {
+        "type": "string",
+        "minLength": 5
+      },
+      "minItems": 0
+    },
+    "rubric": {
+      "$ref": "#/$defs/Rubric",
+      "description": "Per-dimension scoring rubric for this task. Dimensions align with the project-level scoring weights."
+    },
+    "reference_answer_outline": {
+      "type": "string",
+      "description": "Optional: a prose sketch of what an ideal answer looks like. Used during task authoring and human review. NOT exposed to the model under evaluation.",
+      "minLength": 10
+    }
+  },
+  "$defs": {
+    "GoldFact": {
+      "type": "object",
+      "description": "A single verifiable ground-truth claim derived from fixture data.",
+      "required": ["fact_id", "claim", "source_files"],
+      "additionalProperties": false,
+      "properties": {
+        "fact_id": {
+          "type": "string",
+          "description": "Identifier unique within the task, e.g. 'F1', 'F2'.",
+          "pattern": "^[A-Za-z0-9_-]{1,32}$"
+        },
+        "claim": {
+          "type": "string",
+          "description": "The exact claim that must be verifiable from the fixture data.",
+          "minLength": 5
+        },
+        "source_files": {
+          "type": "array",
+          "description": "Fixture files that contain the data supporting this fact.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "numeric_value": {
+          "type": ["number", "null"],
+          "description": "If the claim is numeric, the expected value for automated comparison."
+        },
+        "tolerance": {
+          "type": ["number", "null"],
+          "description": "Allowed absolute deviation for numeric comparisons (e.g. rounding). Null means exact match.",
+          "minimum": 0
+        }
+      }
+    },
+    "Rubric": {
+      "type": "object",
+      "description": "Per-dimension scoring weights and guidance for a single task. Weights must sum to 1.0.",
+      "required": [
+        "grounding_accuracy",
+        "insight_quality",
+        "evidence_linkage",
+        "calibration_limitation_handling",
+        "consistency",
+        "structure_usability"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "grounding_accuracy": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Grounding Accuracy (project default: 0.35). Measures whether asserted facts are verifiable from the fixture data."
+        },
+        "insight_quality": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Insight Quality (project default: 0.20). Measures analytical depth and usefulness."
+        },
+        "evidence_linkage": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Evidence Linkage (project default: 0.15). Measures whether claims are explicitly tied to source data."
+        },
+        "calibration_limitation_handling": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Calibration & Limitation Handling (project default: 0.15). Measures appropriate uncertainty and caveat disclosure."
+        },
+        "consistency": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Consistency (project default: 0.10). Measured across 5 repeated runs per model×task pair."
+        },
+        "structure_usability": {
+          "$ref": "#/$defs/RubricDimension",
+          "description": "Weight and guidance for Structure & Usability (project default: 0.05). Measures practitioner-facing format quality."
+        }
+      }
+    },
+    "RubricDimension": {
+      "type": "object",
+      "description": "Scoring weight and optional scorer guidance for one rubric dimension.",
+      "required": ["weight"],
+      "additionalProperties": false,
+      "properties": {
+        "weight": {
+          "type": "number",
+          "description": "Fractional weight of this dimension in the task's total score. All six dimension weights must sum to 1.0.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "guidance": {
+          "type": "string",
+          "description": "Optional scorer/reviewer guidance text specific to this task and dimension.",
+          "minLength": 5
+        }
+      }
+    }
+  }
+}
