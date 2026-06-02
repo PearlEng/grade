@@ -9,7 +9,9 @@ description = "GRADE — Grounded Reasoning & Analysis for Data in Education pub
 license = { text = "Apache-2.0" }
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "jsonschema>=4",
+]
 
 [project.optional-dependencies]
 openrouter = []
@@ -19,6 +21,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pytest>=8.2",
+    "types-jsonschema>=4",
 ]
 
 # ---------------------------------------------------------------------------

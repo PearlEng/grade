@@ -18,5 +18,5 @@ repos:
     rev: v1.10.1
     hooks:
       - id: mypy
-        additional_dependencies: []
+        additional_dependencies: ["types-jsonschema>=4"]
         args: [--ignore-missing-imports]

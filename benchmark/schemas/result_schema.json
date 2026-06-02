@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PearlEng/grade/benchmark/schemas/result_schema.json",
+  "title": "GRADE Scorecard Result",
+  "description": "Schema for the final scorecard JSON produced by the C9 report generator for one (model × benchmark run). Contains per-task scores, per-track aggregates, per-pack aggregates, and overall scores across all six GRADE dimensions.",
+  "type": "object",
+  "required": [
+    "result_id",
+    "model_id",
+    "grade_version",
+    "scored_at_utc",
+    "overall_scores",
+    "per_track_scores",
+    "per_pack_scores",
+    "per_task_scores"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "result_id": {
+      "type": "string",
+      "description": "Unique identifier for this result record, e.g. a UUID or '<model_slug>-<run_date>-<hash>'.",
+      "minLength": 8
+    },
+    "model_id": {
+      "type": "string",
+      "description": "Fully qualified model identifier matching the model_id in the output records, e.g. 'openrouter/anthropic/claude-opus-4-7'.",
+      "minLength": 3
+    },
+    "grade_version": {
+      "type": "string",
+      "description": "Version of the GRADE benchmark package used to produce these scores, e.g. '0.1.0'.",
+      "minLength": 1
+    },
+    "scored_at_utc": {
+      "type": "string",
+      "description": "ISO 8601 UTC timestamp when scoring completed.",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "run_count": {
+      "type": ["integer", "null"],
+      "description": "Number of repetitions per (model × task) pair used for consistency scoring. Expected: 5.",
+      "minimum": 1
+    },
+    "task_count": {
+      "type": ["integer", "null"],
+      "description": "Total number of distinct tasks included in this scorecard.",
+      "minimum": 1
+    },
+    "overall_scores": {
+      "$ref": "#/$defs/DimensionScores",
+      "description": "Weighted aggregate scores across all tasks and packs. These are the headline numbers reported on the leaderboard."
+    },
+    "overall_composite": {
+      "type": ["number", "null"],
+      "description": "Single composite score [0, 1] computed by applying the project-level dimension weights to overall_scores. Null if not yet computed.",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "per_track_scores": {
+      "type": "object",
+      "description": "Map from track number (as string key '1'–'5') to dimension scores aggregated over all tasks in that track.",
+      "additionalProperties": false,
+      "properties": {
+        "1": { "$ref": "#/$defs/TrackResult" },
+        "2": { "$ref": "#/$defs/TrackResult" },
+        "3": { "$ref": "#/$defs/TrackResult" },
+        "4": { "$ref": "#/$defs/TrackResult" },
+        "5": { "$ref": "#/$defs/TrackResult" }
+      }
+    },
+    "per_pack_scores": {
+      "type": "object",
+      "description": "Map from pack identifier to dimension scores aggregated over all tasks run against that pack.",
+      "additionalProperties": false,
+      "properties": {
+        "pack_operations": { "$ref": "#/$defs/PackResult" },
+        "pack_outcomes": { "$ref": "#/$defs/PackResult" },
+        "pack_equity_research": { "$ref": "#/$defs/PackResult" }
+      }
+    },
+    "per_task_scores": {
+      "type": "array",
+      "description": "One entry per (task_id) with that task's dimension scores and aggregate.",
+      "items": {
+        "$ref": "#/$defs/TaskResult"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "DimensionScores": {
+      "type": "object",
+      "description": "Scores for each of the six GRADE scoring dimensions. All values are in [0, 1].",
+      "required": [
+        "grounding_accuracy",
+        "insight_quality",
+        "evidence_linkage",
+        "calibration_limitation_handling",
+        "consistency",
+        "structure_usability"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "grounding_accuracy": {
+          "type": "number",
+          "description": "Grounding Accuracy score [0, 1]. Project weight: 35%. Fraction of gold_facts asserted correctly and no forbidden_claims present.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "insight_quality": {
+          "type": "number",
+          "description": "Insight Quality score [0, 1]. Project weight: 20%. Coverage and depth of gold_insights reached.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "evidence_linkage": {
+          "type": "number",
+          "description": "Evidence Linkage score [0, 1]. Project weight: 15%. Fraction of key claims explicitly tied to source data.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "calibration_limitation_handling": {
+          "type": "number",
+          "description": "Calibration & Limitation Handling score [0, 1]. Project weight: 15%. Coverage of required_limitations and absence of overconfident claims.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "consistency": {
+          "type": "number",
+          "description": "Consistency score [0, 1]. Project weight: 10%. Agreement of key findings across 5 repeated runs.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "structure_usability": {
+          "type": "number",
+          "description": "Structure & Usability score [0, 1]. Project weight: 5%. Practitioner-facing format quality.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "TrackResult": {
+      "type": "object",
+      "description": "Aggregated scores for one benchmark track.",
+      "required": ["track", "task_count", "scores"],
+      "additionalProperties": false,
+      "properties": {
+        "track": {
+          "type": "integer",
+          "description": "Track number (1–5).",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "track_name": {
+          "type": ["string", "null"],
+          "description": "Human-readable track name, e.g. 'Grounded Retrieval & Computation'."
+        },
+        "task_count": {
+          "type": "integer",
+          "description": "Number of tasks included in this track's aggregate.",
+          "minimum": 1
+        },
+        "scores": {
+          "$ref": "#/$defs/DimensionScores"
+        },
+        "composite": {
+          "type": ["number", "null"],
+          "description": "Track-level composite score applying project-level weights to dimension scores.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "PackResult": {
+      "type": "object",
+      "description": "Aggregated scores for one fixture pack.",
+      "required": ["pack_id", "task_count", "scores"],
+      "additionalProperties": false,
+      "properties": {
+        "pack_id": {
+          "type": "string",
+          "description": "Fixture pack identifier, e.g. 'pack_operations'.",
+          "enum": ["pack_operations", "pack_outcomes", "pack_equity_research"]
+        },
+        "task_count": {
+          "type": "integer",
+          "description": "Number of tasks run against this pack.",
+          "minimum": 1
+        },
+        "scores": {
+          "$ref": "#/$defs/DimensionScores"
+        },
+        "composite": {
+          "type": ["number", "null"],
+          "description": "Pack-level composite score.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      }
+    },
+    "TaskResult": {
+      "type": "object",
+      "description": "Scores for a single task, averaged over all repetition runs.",
+      "required": ["task_id", "track", "scores"],
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Task identifier matching the task definition.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$"
+        },
+        "track": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "pack_id": {
+          "type": ["string", "null"],
+          "description": "Fixture pack this task was evaluated against."
+        },
+        "run_count": {
+          "type": ["integer", "null"],
+          "description": "Number of repetition runs included in these aggregated scores.",
+          "minimum": 1
+        },
+        "scores": {
+          "$ref": "#/$defs/DimensionScores"
+        },
+        "composite": {
+          "type": ["number", "null"],
+          "description": "Task-level composite score.",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "scorer_flags": {
+          "type": ["array", "null"],
+          "description": "Optional list of scorer warning flags, e.g. ['low_n_subgroup_skipped', 'numeric_tolerance_applied'].",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
