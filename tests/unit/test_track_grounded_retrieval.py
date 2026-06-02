@@ -245,42 +245,47 @@ class TestT1OPS003GoldFacts:
 class TestT1OPS004GoldFacts:
     """Recompute gold facts for T1-OPS-004 (October cancellation spike)."""
 
+    @staticmethod
+    def _cancel_or_noshow(sess: list[dict]) -> int:
+        """Count sessions that were cancelled (any party) or a no-show.
+
+        Matches the canonical ``monthly_cancellation_rate`` definition in
+        ``benchmark/datagen/generator.py`` and the packs' ``ground_truth.json``.
+        """
+        return sum(1 for s in sess if "cancelled" in s["status"] or s["status"] == "no_show")
+
     def test_f1_september_cancellation_rate(self) -> None:
-        """F1: September cancellation rate ≈ 0.0798 ± 0.001."""
+        """F1: September cancellation rate ≈ 0.1064 ± 0.001."""
         sep_sess = _sessions_in_month(_SESSIONS, "2025-09")
-        cancelled = sum(1 for s in sep_sess if "cancelled" in s["status"])
-        rate = cancelled / len(sep_sess)
-        assert abs(rate - 0.0798) <= 0.001, f"Sep cancel rate was {rate:.4f}"
+        rate = self._cancel_or_noshow(sep_sess) / len(sep_sess)
+        assert abs(rate - 0.1064) <= 0.001, f"Sep cancel rate was {rate:.4f}"
 
     def test_f2_october_cancellation_rate(self) -> None:
-        """F2: October cancellation rate ≈ 0.2105 ± 0.001."""
+        """F2: October cancellation rate ≈ 0.2789 ± 0.001."""
         oct_sess = _sessions_in_month(_SESSIONS, "2025-10")
-        cancelled = sum(1 for s in oct_sess if "cancelled" in s["status"])
-        rate = cancelled / len(oct_sess)
-        assert abs(rate - 0.2105) <= 0.001, f"Oct cancel rate was {rate:.4f}"
+        rate = self._cancel_or_noshow(oct_sess) / len(oct_sess)
+        assert abs(rate - 0.2789) <= 0.001, f"Oct cancel rate was {rate:.4f}"
 
     def test_f3_november_cancellation_rate(self) -> None:
-        """F3: November cancellation rate ≈ 0.0655 ± 0.001."""
+        """F3: November cancellation rate ≈ 0.0952 ± 0.001."""
         nov_sess = _sessions_in_month(_SESSIONS, "2025-11")
-        cancelled = sum(1 for s in nov_sess if "cancelled" in s["status"])
-        rate = cancelled / len(nov_sess)
-        assert abs(rate - 0.0655) <= 0.001, f"Nov cancel rate was {rate:.4f}"
+        rate = self._cancel_or_noshow(nov_sess) / len(nov_sess)
+        assert abs(rate - 0.0952) <= 0.001, f"Nov cancel rate was {rate:.4f}"
 
     def test_f4_october_vs_sep_nov_average(self) -> None:
-        """F4: October rate minus average of Sep/Nov is approximately 13.8 pp ± 0.3."""
+        """F4: October rate minus average of Sep/Nov is approximately 17.8 pp ± 0.3."""
         sep_sess = _sessions_in_month(_SESSIONS, "2025-09")
         oct_sess = _sessions_in_month(_SESSIONS, "2025-10")
         nov_sess = _sessions_in_month(_SESSIONS, "2025-11")
 
         def rate(sess: list[dict]) -> float:
-            cancelled = sum(1 for s in sess if "cancelled" in s["status"])
-            return cancelled / len(sess)
+            return self._cancel_or_noshow(sess) / len(sess)
 
         sep_rate = rate(sep_sess)
         oct_rate = rate(oct_sess)
         nov_rate = rate(nov_sess)
         diff = (oct_rate - (sep_rate + nov_rate) / 2) * 100
-        assert abs(diff - 13.8) <= 0.3, f"Difference was {diff:.2f} pp"
+        assert abs(diff - 17.8) <= 0.3, f"Difference was {diff:.2f} pp"
 
 
 class TestT1OPS005GoldFacts:
