@@ -28,14 +28,14 @@ Usage examples::
     python -m runner.cli --pack operations --adapter stub --runs 1 --out /tmp/grade_out
 
     # With the OpenRouter adapter:
-    python -m runner.cli --pack outcomes --adapter openrouter --model anthropic/claude-sonnet-4-5 --runs 5 --out /tmp/grade_out
+    python -m runner.cli --pack outcomes --adapter openrouter \
+        --model anthropic/claude-sonnet-4-5 --runs 5 --out /tmp/grade_out
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from runner.adapters.base import Adapter
@@ -49,8 +49,8 @@ from runner.io import write_raw_outputs, write_result
 # Adapter registry
 # ---------------------------------------------------------------------------
 
-#: Map from CLI ``--adapter`` name to a zero-argument factory callable.
-#: C6 adds OpenRouterAdapter as the default; factory accepts an optional
+#: Map from CLI ``--adapter`` name to an adapter class (treated as a factory).
+#: C6 adds OpenRouterAdapter as the default; the factory accepts an optional
 #: model kwarg which is threaded through from ``--model``.
 _ADAPTER_REGISTRY: dict[str, type] = {
     "openrouter": OpenRouterAdapter,
@@ -129,10 +129,10 @@ def _build_adapter(adapter_name: str, model: str | None = None) -> Adapter:
     factory = _ADAPTER_REGISTRY[adapter_name]
     if model is not None:
         try:
-            return factory(model=model)  # type: ignore[call-arg]
+            return factory(model=model)  # type: ignore[no-any-return]
         except TypeError:
             pass  # adapter doesn't accept model kwarg — fall through
-    return factory()  # type: ignore[call-arg]
+    return factory()  # type: ignore[no-any-return]
 
 
 def build_parser() -> argparse.ArgumentParser:

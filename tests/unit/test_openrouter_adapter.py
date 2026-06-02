@@ -597,7 +597,9 @@ class TestAdapterRegistry:
         from runner.cli import build_parser
 
         parser = build_parser()
-        args = parser.parse_args(["--task", "T1-OPS-001", "--adapter", "openrouter"])
+        args = parser.parse_args(
+            ["--pack", "operations", "--adapter", "openrouter", "--out", "/tmp/grade_out"]
+        )
         cls = get_adapter(args.adapter)
         assert cls is OpenRouterAdapter
 
@@ -606,7 +608,7 @@ class TestAdapterRegistry:
         from runner.cli import build_parser
 
         parser = build_parser()
-        args = parser.parse_args(["--task", "T1-OPS-001"])
+        args = parser.parse_args(["--pack", "operations", "--out", "/tmp/grade_out"])
         assert args.adapter == "openrouter"
 
     def test_openrouter_adapter_satisfies_adapter_protocol(self) -> None:
