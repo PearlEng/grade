@@ -1,0 +1,4 @@
+summary_id,program_id,school_id,survey_type,month_label,responses_count,avg_score,response_rate,mom_score_delta
+MSS-0001,PROG-001,SCH-001,parent_feedback,2025-11,267,3.1029,1.9778,
+MSS-0002,PROG-001,SCH-001,student_satisfaction,2025-11,248,3.5121,1.837,
+MSS-0003,PROG-001,SCH-001,tutor_self_eval,2025-11,13,2.9231,1.4444,
