@@ -869,6 +869,302 @@ def _gen_monthly_satisfaction_real(seed: int) -> Table:
     return rows
 
 
+def _compute_ground_truth_operations(
+    sessions: Table,
+    students: Table,
+    attendance: Table,
+    seed: int,
+) -> dict[str, Any]:
+    """Compute the ground-truth manifest for the Operations pack.
+
+    Derives realized signal values from sessions, students, and attendance —
+    the tables available in pack_operations (no MoM summary tables).  Includes
+    monthly cancellation rates, IEP attendance gap, and suppressed low-N
+    subgroups.
+
+    Args:
+        sessions: Generated ``sessions`` rows.
+        students: Generated ``students`` rows.
+        attendance: Generated ``attendance`` rows.
+        seed: Integer seed used for this generation run.
+
+    Returns:
+        Dictionary suitable for ``ground_truth.json`` in pack_operations.
+    """
+    # -----------------------------------------------------------------------
+    # Monthly attendance rate (per month, program-wide)
+    # -----------------------------------------------------------------------
+    att_slots_by_month: dict[str, dict[str, int]] = {}
+    # Build session lookup for date resolution
+    session_by_id: dict[str, Row] = {str(s["session_id"]): s for s in sessions}
+
+    for att in attendance:
+        sess = session_by_id.get(str(att["session_id"]))
+        if sess is None:
+            continue
+        d = date.fromisoformat(str(sess["scheduled_date"]))
+        ml = f"{d.year}-{d.month:02d}"
+        if ml not in att_slots_by_month:
+            att_slots_by_month[ml] = {"slots": 0, "attended": 0}
+        att_slots_by_month[ml]["slots"] += 1
+        if str(att["attended"]) == "true":
+            att_slots_by_month[ml]["attended"] += 1
+
+    monthly_attendance_rate: dict[str, float] = {
+        ml: round(data["attended"] / data["slots"], 4)
+        for ml, data in sorted(att_slots_by_month.items())
+        if data["slots"] > 0
+    }
+
+    # Program-wide rate: total attended / total slots
+    total_slots = sum(d["slots"] for d in att_slots_by_month.values())
+    total_attended = sum(d["attended"] for d in att_slots_by_month.values())
+    program_wide_attendance_rate = (
+        round(total_attended / total_slots, 4) if total_slots > 0 else 0.0
+    )
+
+    # -----------------------------------------------------------------------
+    # Monthly cancellation rate
+    # -----------------------------------------------------------------------
+    canc_by_month: dict[str, dict[str, int]] = {}
+    for sess in sessions:
+        d = date.fromisoformat(str(sess["scheduled_date"]))
+        ml = f"{d.year}-{d.month:02d}"
+        canc_by_month.setdefault(ml, {"scheduled": 0, "cancelled": 0})
+        canc_by_month[ml]["scheduled"] += 1
+        status = str(sess["status"])
+        if status.startswith("cancelled") or status == "no_show":
+            canc_by_month[ml]["cancelled"] += 1
+
+    monthly_cancellation_rate: dict[str, float] = {
+        ml: round(data["cancelled"] / data["scheduled"], 4)
+        for ml, data in sorted(canc_by_month.items())
+        if data["scheduled"] > 0
+    }
+
+    # -----------------------------------------------------------------------
+    # IEP attendance gap
+    # -----------------------------------------------------------------------
+    iep_attended = 0
+    iep_total = 0
+    non_iep_attended = 0
+    non_iep_total = 0
+
+    iep_lookup: dict[str, bool] = {
+        str(st["student_id"]): str(st["iep"]) == "true" for st in students
+    }
+    for att in attendance:
+        stuid = str(att["student_id"])
+        is_iep = iep_lookup.get(stuid, False)
+        if is_iep:
+            iep_total += 1
+            if str(att["attended"]) == "true":
+                iep_attended += 1
+        else:
+            non_iep_total += 1
+            if str(att["attended"]) == "true":
+                non_iep_attended += 1
+
+    iep_rate = round(iep_attended / iep_total, 4) if iep_total > 0 else None
+    non_iep_rate = round(non_iep_attended / non_iep_total, 4) if non_iep_total > 0 else None
+    iep_gap_pp: float | None = (
+        round((non_iep_rate - iep_rate) * 100, 2)
+        if iep_rate is not None and non_iep_rate is not None
+        else None
+    )
+
+    # -----------------------------------------------------------------------
+    # Suppressed low-N subgroups (from students table)
+    # -----------------------------------------------------------------------
+    race_counts: dict[str, int] = {}
+    for st in students:
+        rc = str(st.get("race_ethnicity") or "Unknown")
+        race_counts[rc] = race_counts.get(rc, 0) + 1
+
+    suppressed_subgroups = [
+        {"subgroup_dimension": "race_ethnicity", "subgroup_value": rc, "n": n}
+        for rc, n in sorted(race_counts.items())
+        if n < spec.SUPPRESSION_THRESHOLD
+    ]
+
+    return {
+        "pack_id": "pack_operations",
+        "seed": seed,
+        "note": (
+            "All values computed from the generated data — not from spec.py input constants. "
+            "B-task authors should assert these realized numbers, not the spec targets."
+        ),
+        "monthly_attendance_rate": monthly_attendance_rate,
+        "program_wide_attendance_rate": program_wide_attendance_rate,
+        "monthly_cancellation_rate": monthly_cancellation_rate,
+        "iep_attendance_rate": iep_rate,
+        "non_iep_attendance_rate": non_iep_rate,
+        "iep_attendance_gap_pp": iep_gap_pp,
+        "suppressed_low_n_subgroups": suppressed_subgroups,
+    }
+
+
+def _compute_ground_truth_equity(
+    sessions: Table,
+    students: Table,
+    attendance: Table,
+    subgroup_att: Table,
+    subgroup_out: Table,
+    seed: int,
+) -> dict[str, Any]:
+    """Compute the ground-truth manifest for the Equity & Research pack.
+
+    Derives realized signal values from sessions, students, attendance, and the
+    subgroup summary tables.  Includes the IEP attendance gap, suppressed low-N
+    subgroups, and subgroup outcome disparities (IEP vs non-IEP proficiency gap).
+
+    Args:
+        sessions: Generated ``sessions`` rows.
+        students: Generated ``students`` rows.
+        attendance: Generated ``attendance`` rows.
+        subgroup_att: Generated ``subgroup_attendance_summary`` rows.
+        subgroup_out: Generated ``subgroup_outcomes_summary`` rows.
+        seed: Integer seed used for this generation run.
+
+    Returns:
+        Dictionary suitable for ``ground_truth.json`` in pack_equity_research.
+    """
+    # -----------------------------------------------------------------------
+    # Monthly attendance rate (per month, program-wide, computed from raw data)
+    # -----------------------------------------------------------------------
+    session_by_id: dict[str, Row] = {str(s["session_id"]): s for s in sessions}
+    att_slots_by_month: dict[str, dict[str, int]] = {}
+
+    for att in attendance:
+        sess = session_by_id.get(str(att["session_id"]))
+        if sess is None:
+            continue
+        d = date.fromisoformat(str(sess["scheduled_date"]))
+        ml = f"{d.year}-{d.month:02d}"
+        if ml not in att_slots_by_month:
+            att_slots_by_month[ml] = {"slots": 0, "attended": 0}
+        att_slots_by_month[ml]["slots"] += 1
+        if str(att["attended"]) == "true":
+            att_slots_by_month[ml]["attended"] += 1
+
+    monthly_attendance_rate: dict[str, float] = {
+        ml: round(data["attended"] / data["slots"], 4)
+        for ml, data in sorted(att_slots_by_month.items())
+        if data["slots"] > 0
+    }
+
+    total_slots = sum(d["slots"] for d in att_slots_by_month.values())
+    total_attended = sum(d["attended"] for d in att_slots_by_month.values())
+    program_wide_attendance_rate = (
+        round(total_attended / total_slots, 4) if total_slots > 0 else 0.0
+    )
+
+    # -----------------------------------------------------------------------
+    # IEP attendance gap (from raw attendance + students)
+    # -----------------------------------------------------------------------
+    iep_attended = 0
+    iep_total = 0
+    non_iep_attended = 0
+    non_iep_total = 0
+
+    iep_lookup: dict[str, bool] = {
+        str(st["student_id"]): str(st["iep"]) == "true" for st in students
+    }
+    for att in attendance:
+        stuid = str(att["student_id"])
+        is_iep = iep_lookup.get(stuid, False)
+        if is_iep:
+            iep_total += 1
+            if str(att["attended"]) == "true":
+                iep_attended += 1
+        else:
+            non_iep_total += 1
+            if str(att["attended"]) == "true":
+                non_iep_attended += 1
+
+    iep_rate = round(iep_attended / iep_total, 4) if iep_total > 0 else None
+    non_iep_rate = round(non_iep_attended / non_iep_total, 4) if non_iep_total > 0 else None
+    iep_gap_pp: float | None = (
+        round((non_iep_rate - iep_rate) * 100, 2)
+        if iep_rate is not None and non_iep_rate is not None
+        else None
+    )
+
+    # -----------------------------------------------------------------------
+    # Suppressed low-N subgroups (from students table)
+    # -----------------------------------------------------------------------
+    race_counts: dict[str, int] = {}
+    for st in students:
+        rc = str(st.get("race_ethnicity") or "Unknown")
+        race_counts[rc] = race_counts.get(rc, 0) + 1
+
+    suppressed_subgroups = [
+        {"subgroup_dimension": "race_ethnicity", "subgroup_value": rc, "n": n}
+        for rc, n in sorted(race_counts.items())
+        if n < spec.SUPPRESSION_THRESHOLD
+    ]
+
+    # -----------------------------------------------------------------------
+    # Subgroup outcome disparities from subgroup_outcomes_summary
+    # IEP vs non-IEP proficiency rate gap (spring_2026)
+    # -----------------------------------------------------------------------
+    iep_outcomes: dict[str, Any] = {}
+    for row in subgroup_out:
+        dim_match = str(row["subgroup_dimension"]) == "iep"
+        period_match = str(row["assessment_period"]) == "spring_2026"
+        if dim_match and period_match:
+            val = row["benchmark_proficiency_rate"]
+            iep_outcomes[str(row["subgroup_value"])] = (
+                float(str(val)) if val != "" and val is not None else None
+            )
+
+    iep_prof = iep_outcomes.get("true")
+    non_iep_prof = iep_outcomes.get("false")
+    iep_proficiency_gap_pp: float | None = (
+        round((non_iep_prof - iep_prof) * 100, 2)
+        if iep_prof is not None and non_iep_prof is not None
+        else None
+    )
+
+    # Collect all subgroup-outcome disparities where suppressed=false, dim=iep, spring
+    subgroup_outcome_disparities: list[dict[str, Any]] = []
+    for row in subgroup_out:
+        if (
+            str(row["subgroup_dimension"]) == "iep"
+            and str(row["assessment_period"]) == "spring_2026"
+            and str(row["suppressed"]) == "false"
+        ):
+            val = row["benchmark_proficiency_rate"]
+            subgroup_outcome_disparities.append(
+                {
+                    "assessment_period": str(row["assessment_period"]),
+                    "subgroup_dimension": str(row["subgroup_dimension"]),
+                    "subgroup_value": str(row["subgroup_value"]),
+                    "n_students": int(str(row["n_students"])),
+                    "benchmark_proficiency_rate": (
+                        float(str(val)) if val != "" and val is not None else None
+                    ),
+                }
+            )
+
+    return {
+        "pack_id": "pack_equity_research",
+        "seed": seed,
+        "note": (
+            "All values computed from the generated data — not from spec.py input constants. "
+            "B-task authors should assert these realized numbers, not the spec targets."
+        ),
+        "monthly_attendance_rate": monthly_attendance_rate,
+        "program_wide_attendance_rate": program_wide_attendance_rate,
+        "iep_attendance_rate": iep_rate,
+        "non_iep_attendance_rate": non_iep_rate,
+        "iep_attendance_gap_pp": iep_gap_pp,
+        "suppressed_low_n_subgroups": suppressed_subgroups,
+        "iep_proficiency_gap_pp_spring": iep_proficiency_gap_pp,
+        "subgroup_outcome_disparities": subgroup_outcome_disparities,
+    }
+
+
 def _compute_ground_truth(
     monthly_att: Table,
     monthly_sat: Table,
@@ -1385,6 +1681,9 @@ def generate_operations(out_dir: Path, seed: int) -> Path:
     surveys = _gen_surveys(rng)
     survey_responses = _gen_survey_responses(surveys, students, rng)
 
+    # Ground-truth manifest: computed from actual generated data (not spec constants).
+    ground_truth = _compute_ground_truth_operations(sessions, students, attendance, seed)
+
     _write_csv(pack_dir / "programs.csv", programs)
     _write_csv(pack_dir / "schools.csv", schools)
     _write_csv(pack_dir / "tutors.csv", tutors)
@@ -1397,6 +1696,7 @@ def generate_operations(out_dir: Path, seed: int) -> Path:
 
     ctx = _gen_program_context(seed)
     _write_json(pack_dir / "program_context.json", ctx)
+    _write_json(pack_dir / "ground_truth.json", ground_truth)
 
     generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _write_manifest(pack_dir, "pack_operations", seed, generated_at)
@@ -1495,6 +1795,11 @@ def generate_equity_research(out_dir: Path, seed: int) -> Path:
     subgroup_out = _compute_subgroup_outcomes(students, rng)
     research_refs = _gen_research_refs(spec.PROGRAM_ID)
 
+    # Ground-truth manifest: computed from actual generated data (not spec constants).
+    ground_truth = _compute_ground_truth_equity(
+        sessions, students, attendance, subgroup_att, subgroup_out, seed
+    )
+
     _write_csv(pack_dir / "programs.csv", programs)
     _write_csv(pack_dir / "schools.csv", schools)
     _write_csv(pack_dir / "tutors.csv", tutors)
@@ -1510,6 +1815,7 @@ def generate_equity_research(out_dir: Path, seed: int) -> Path:
 
     ctx = _gen_program_context(seed)
     _write_json(pack_dir / "program_context.json", ctx)
+    _write_json(pack_dir / "ground_truth.json", ground_truth)
 
     generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _write_manifest(pack_dir, "pack_equity_research", seed, generated_at)

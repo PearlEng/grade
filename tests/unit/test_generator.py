@@ -489,6 +489,11 @@ class TestSchemaConformanceOutcomes:
         assert data["pack_id"] == "pack_outcomes"
         assert data["seed"] == SEED
 
+    def test_ground_truth_cancellation_rate_keys(self, outcomes_dir: Path) -> None:
+        """ground_truth.json monthly_cancellation_rate must have entries for all three months."""
+        data = _read_json(outcomes_dir / "ground_truth.json")
+        assert set(data["monthly_cancellation_rate"].keys()) == set(spec.MONTHS)
+
     def test_monthly_attendance_pk_unique(self, outcomes_dir: Path) -> None:
         """monthly_attendance_summary summary_id must be unique."""
         rows = _read_csv(outcomes_dir / "monthly_attendance_summary.csv")
@@ -510,6 +515,139 @@ class TestSchemaConformanceOutcomes:
             "program_context.json",
         ]:
             assert (outcomes_dir / fname).exists(), f"Missing {fname} in outcomes pack"
+
+
+class TestGroundTruthOperations:
+    """Operations pack ground_truth.json contract."""
+
+    def test_ground_truth_present(self, ops_dir: Path) -> None:
+        """ground_truth.json must exist in the operations pack."""
+        assert (ops_dir / "ground_truth.json").exists(), "Missing ground_truth.json in operations"
+
+    def test_ground_truth_keys(self, ops_dir: Path) -> None:
+        """ground_truth.json must contain all required top-level keys."""
+        required = {
+            "pack_id",
+            "seed",
+            "monthly_attendance_rate",
+            "program_wide_attendance_rate",
+            "monthly_cancellation_rate",
+            "iep_attendance_rate",
+            "non_iep_attendance_rate",
+            "iep_attendance_gap_pp",
+            "suppressed_low_n_subgroups",
+        }
+        data = _read_json(ops_dir / "ground_truth.json")
+        assert required <= set(data.keys())
+        assert data["pack_id"] == "pack_operations"
+        assert data["seed"] == SEED
+
+    def test_ground_truth_monthly_attendance_all_months(self, ops_dir: Path) -> None:
+        """monthly_attendance_rate must have entries for all three months."""
+        data = _read_json(ops_dir / "ground_truth.json")
+        assert set(data["monthly_attendance_rate"].keys()) == set(spec.MONTHS)
+
+    def test_ground_truth_monthly_cancellation_all_months(self, ops_dir: Path) -> None:
+        """monthly_cancellation_rate must have entries for all three months."""
+        data = _read_json(ops_dir / "ground_truth.json")
+        assert set(data["monthly_cancellation_rate"].keys()) == set(spec.MONTHS)
+
+    def test_ground_truth_october_cancellation_elevated(self, ops_dir: Path) -> None:
+        """October cancellation rate must be higher than September and November."""
+        data = _read_json(ops_dir / "ground_truth.json")
+        canc = data["monthly_cancellation_rate"]
+        months = sorted(spec.MONTHS)
+        assert canc[months[1]] > canc[months[0]], (
+            f"October cancellation ({canc[months[1]]}) not > September ({canc[months[0]]})"
+        )
+        assert canc[months[1]] > canc[months[2]], (
+            f"October cancellation ({canc[months[1]]}) not > November ({canc[months[2]]})"
+        )
+
+    def test_ground_truth_iep_gap_positive(self, ops_dir: Path) -> None:
+        """IEP attendance gap must be positive (non-IEP attends more)."""
+        data = _read_json(ops_dir / "ground_truth.json")
+        assert data["iep_attendance_gap_pp"] is not None
+        assert data["iep_attendance_gap_pp"] > 0, (
+            f"IEP gap should be positive, got {data['iep_attendance_gap_pp']}"
+        )
+
+    def test_ground_truth_suppressed_subgroups_present(self, ops_dir: Path) -> None:
+        """suppressed_low_n_subgroups must include AIAN with n < suppression threshold."""
+        data = _read_json(ops_dir / "ground_truth.json")
+        aian = [s for s in data["suppressed_low_n_subgroups"] if s["subgroup_value"] == "AIAN"]
+        assert aian, "AIAN not found in suppressed_low_n_subgroups"
+        assert aian[0]["n"] == spec.AIAN_TARGET_N
+
+    def test_ground_truth_in_manifest(self, ops_dir: Path) -> None:
+        """manifest.json must include an entry for ground_truth.json."""
+        manifest = _read_json(ops_dir / "manifest.json")
+        filenames = {f["filename"] for f in manifest["files"]}
+        assert "ground_truth.json" in filenames, "ground_truth.json not listed in manifest"
+
+
+class TestGroundTruthEquity:
+    """Equity & Research pack ground_truth.json contract."""
+
+    def test_ground_truth_present(self, equity_dir: Path) -> None:
+        """ground_truth.json must exist in the equity pack."""
+        assert (equity_dir / "ground_truth.json").exists(), (
+            "Missing ground_truth.json in equity pack"
+        )
+
+    def test_ground_truth_keys(self, equity_dir: Path) -> None:
+        """ground_truth.json must contain all required top-level keys."""
+        required = {
+            "pack_id",
+            "seed",
+            "monthly_attendance_rate",
+            "program_wide_attendance_rate",
+            "iep_attendance_rate",
+            "non_iep_attendance_rate",
+            "iep_attendance_gap_pp",
+            "suppressed_low_n_subgroups",
+            "iep_proficiency_gap_pp_spring",
+            "subgroup_outcome_disparities",
+        }
+        data = _read_json(equity_dir / "ground_truth.json")
+        assert required <= set(data.keys())
+        assert data["pack_id"] == "pack_equity_research"
+        assert data["seed"] == SEED
+
+    def test_ground_truth_iep_gap_positive(self, equity_dir: Path) -> None:
+        """IEP attendance gap must be positive."""
+        data = _read_json(equity_dir / "ground_truth.json")
+        assert data["iep_attendance_gap_pp"] is not None
+        assert data["iep_attendance_gap_pp"] > 0
+
+    def test_ground_truth_proficiency_gap_positive(self, equity_dir: Path) -> None:
+        """IEP proficiency gap (spring) must be positive (non-IEP outperforms IEP)."""
+        data = _read_json(equity_dir / "ground_truth.json")
+        assert data["iep_proficiency_gap_pp_spring"] is not None
+        assert data["iep_proficiency_gap_pp_spring"] > 0, (
+            f"Expected positive proficiency gap, got {data['iep_proficiency_gap_pp_spring']}"
+        )
+
+    def test_ground_truth_suppressed_subgroups_aian(self, equity_dir: Path) -> None:
+        """suppressed_low_n_subgroups must include AIAN."""
+        data = _read_json(equity_dir / "ground_truth.json")
+        aian = [s for s in data["suppressed_low_n_subgroups"] if s["subgroup_value"] == "AIAN"]
+        assert aian, "AIAN not found in suppressed_low_n_subgroups"
+        assert aian[0]["n"] == spec.AIAN_TARGET_N
+
+    def test_ground_truth_subgroup_outcome_disparities_iep(self, equity_dir: Path) -> None:
+        """subgroup_outcome_disparities must contain IEP true/false spring rows."""
+        data = _read_json(equity_dir / "ground_truth.json")
+        disparities = data["subgroup_outcome_disparities"]
+        values = {d["subgroup_value"] for d in disparities}
+        assert "true" in values, "IEP=true not in subgroup_outcome_disparities"
+        assert "false" in values, "IEP=false not in subgroup_outcome_disparities"
+
+    def test_ground_truth_in_manifest(self, equity_dir: Path) -> None:
+        """manifest.json must include an entry for ground_truth.json."""
+        manifest = _read_json(equity_dir / "manifest.json")
+        filenames = {f["filename"] for f in manifest["files"]}
+        assert "ground_truth.json" in filenames, "ground_truth.json not listed in manifest"
 
 
 class TestSchemaConformanceEquity:
