@@ -1,16 +1,19 @@
 """Source-of-truth specification for the GRADE synthetic data generator.
 
-This module defines the *known, computable truths* that are baked into the
-generated fixtures and that downstream B-task authors can reference as
-``gold_facts``/``gold_insights`` and that C1/C3 scorers can verify.
+This module defines the *input constants* that configure the intentional signals
+baked into the generated fixtures.  Downstream B-task and C-task authors should
+use the *realized* values from ``ground_truth.json`` (emitted alongside each pack)
+for assertions, not the constants here — the generator applies noise and
+per-school jitter so realized aggregates differ from the input targets.
 
 Intentional signals embedded in every generated pack
 ------------------------------------------------------
 1.  **Month-over-month attendance trend (Outcomes pack)**
-    Attendance rate starts at roughly ``MOM_ATTENDANCE_START`` and rises by
-    ``MOM_ATTENDANCE_DELTA`` each month through ``MOM_TREND_MONTHS`` months,
-    then plateaus.  B-task authors: the net rise is
-    ``MOM_ATTENDANCE_DELTA * (MOM_TREND_MONTHS - 1)`` percentage points.
+    Attendance rate is seeded at ``MOM_ATTENDANCE_START`` and rises by
+    approximately ``MOM_ATTENDANCE_DELTA`` each month, but per-school noise
+    makes the realized program-wide aggregate noisy and non-monotonic.
+    B-task authors: use ``ground_truth.json > monthly_attendance_rate`` for
+    the actual numbers; do NOT assume a clean +10 pp monotonic rise.
 
 2.  **Low-N subgroup (Equity & Research pack)**
     The ``AIAN`` (American Indian / Alaska Native) race-ethnicity subgroup is
@@ -21,19 +24,20 @@ Intentional signals embedded in every generated pack
 
 3.  **Subgroup attendance disparity (Equity & Research pack)**
     The IEP subgroup (students with an Individualized Education Program) attends
-    at ``IEP_ATTENDANCE_PENALTY`` below the non-IEP baseline.  This disparity is
-    reproducible given a fixed seed.  B-task authors: the gap is detectable in
-    ``subgroup_attendance_summary.csv`` when comparing ``iep=true`` vs
-    ``iep=false`` rows.
+    at approximately ``IEP_ATTENDANCE_PENALTY`` below the non-IEP baseline.
+    The realized gap may differ due to stochastic attendance draws; see
+    ``ground_truth.json`` for the actual gap in percentage points.
 
 4.  **Satisfaction score dip and recovery (Outcomes pack)**
-    Student satisfaction scores dip in the middle month by
-    ``SATISFACTION_DIP_MAGNITUDE`` Likert points and recover in the final month.
-    B-task authors: the dip month is month index ``SATISFACTION_DIP_MONTH``
-    (0-based).
+    ``monthly_satisfaction_summary.csv`` contains a genuine three-month series
+    (September / October / November) reflecting baseline → October dip →
+    November recovery.  The dip month is ``SATISFACTION_DIP_MONTH`` (0-based
+    index into ``MONTHS``).  Realized scores have small jitter applied; see
+    ``ground_truth.json > monthly_satisfaction`` and
+    ``ground_truth.json > satisfaction_dip_realized`` for actual values.
 
-All of these values are constants; changing them constitutes a schema-breaking
-change that requires updating all downstream B/C tasks and regenerating fixtures.
+All of these constants are inputs; changing them constitutes a schema-breaking
+change requiring fixture regeneration and downstream B/C task updates.
 """
 
 from __future__ import annotations
@@ -95,11 +99,14 @@ MOM_ATTENDANCE_START: float = 0.72
 # plateaus.  Net change across the 3-month window: +0.10 (i.e., 72% → 82%).
 MOM_ATTENDANCE_DELTA: float = 0.05
 
-# Number of months with the rising trend (remaining months plateau)
-MOM_TREND_MONTHS: int = 3  # all three months show upward trend
+# Number of months with the rising trend (remaining months plateau).
+# Note: per-school noise means the realized program-wide aggregate is
+# non-monotonic (~79% → ~82% → ~82%); see ground_truth.json for actual values.
+MOM_TREND_MONTHS: int = 3
 
-# B-task gold fact: "Attendance rate rose from 72% in September to 82% in
-# November — a +10 percentage-point improvement across the reporting period."
+# B-task authors: the realized attendance values are noisy/non-monotonic due
+# to per-school jitter.  Use ground_truth.json > monthly_attendance_rate for
+# assertions, not the spec target constants above.
 
 # ---------------------------------------------------------------------------
 # Signal 2: Low-N subgroup (Equity & Research pack)
@@ -144,9 +151,10 @@ SATISFACTION_DIP_MAGNITUDE: float = 0.4
 # How much the score recovers in the final month (full recovery)
 SATISFACTION_RECOVERY: float = 0.4
 
-# B-task gold insight: "Student satisfaction dipped to 3.4 in October before
-# recovering to 3.8 in November.  The dip correlates with a period of
-# elevated session cancellations."
+# B-task authors: the monthly_satisfaction_summary.csv now contains a real
+# three-month series.  Realized scores have ±0.1 jitter; see
+# ground_truth.json > monthly_satisfaction and > satisfaction_dip_realized
+# for the actual per-month avg_score values.
 
 # ---------------------------------------------------------------------------
 # Race/ethnicity distribution (must sum to 1.0 after AIAN override)

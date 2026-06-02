@@ -2,12 +2,17 @@
   "pack_id": "pack_outcomes",
   "grade_version": "0.1.0.dev0",
   "seed": 42,
-  "generated_at_utc": "2026-06-02T17:03:43Z",
+  "generated_at_utc": "2026-06-02T17:24:02Z",
   "files": [
     {
       "filename": "attendance.csv",
       "sha256": "e0233cdcdd0faee000c8df5c6f892fdc9a70301d762e5c3f53e47a5e965d9d2e",
       "row_count": 4156
+    },
+    {
+      "filename": "ground_truth.json",
+      "sha256": "040d36b77a7d5c71de1f763c92d84800c611177b0327a2b5360fd37053ff6342",
+      "row_count": null
     },
     {
       "filename": "groups.csv",
@@ -21,8 +26,8 @@
     },
     {
       "filename": "monthly_satisfaction_summary.csv",
-      "sha256": "cdcb0c8486b134b3d3799cd229965ea373356ed950d90a5a20d99ab54f671263",
-      "row_count": 3
+      "sha256": "208f6a3a6a19488849fd7ee8f418f0f0b4b7b11ecd5c1aff9a9985e58d228e29",
+      "row_count": 9
     },
     {
       "filename": "program_context.json",
