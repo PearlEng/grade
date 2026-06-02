@@ -1,0 +1,73 @@
+{
+  "pack_id": "pack_outcomes",
+  "grade_version": "0.1.0.dev0",
+  "seed": 42,
+  "generated_at_utc": "2026-06-02T17:24:02Z",
+  "files": [
+    {
+      "filename": "attendance.csv",
+      "sha256": "e0233cdcdd0faee000c8df5c6f892fdc9a70301d762e5c3f53e47a5e965d9d2e",
+      "row_count": 4156
+    },
+    {
+      "filename": "ground_truth.json",
+      "sha256": "040d36b77a7d5c71de1f763c92d84800c611177b0327a2b5360fd37053ff6342",
+      "row_count": null
+    },
+    {
+      "filename": "groups.csv",
+      "sha256": "6f584054d58c327570e1f4d8c563804009e8eabdb914e1a7d198951f132e2b03",
+      "row_count": 14
+    },
+    {
+      "filename": "monthly_attendance_summary.csv",
+      "sha256": "1f0e25a66b9458adca5f2d46d7d230ab1a4a0eab78234b5052315f5bd730f791",
+      "row_count": 9
+    },
+    {
+      "filename": "monthly_satisfaction_summary.csv",
+      "sha256": "208f6a3a6a19488849fd7ee8f418f0f0b4b7b11ecd5c1aff9a9985e58d228e29",
+      "row_count": 9
+    },
+    {
+      "filename": "program_context.json",
+      "sha256": "2a7a0d359e56381d704ac9f116e0d99b239fa3dc314e70241dd81bb2b3f24821",
+      "row_count": null
+    },
+    {
+      "filename": "programs.csv",
+      "sha256": "53902a27473a44bd0333dcf20cff2134cfa35c96975c3c4d9bf0bda76ce384a8",
+      "row_count": 1
+    },
+    {
+      "filename": "schools.csv",
+      "sha256": "b8a844aad339af1567789117ffe07b31254c2121cc26cefea2c414521c1c9ac5",
+      "row_count": 3
+    },
+    {
+      "filename": "sessions.csv",
+      "sha256": "7df992cbc0cadd0c301ab165d89477d45e62a9512ecc6ad3f56bd9043768e492",
+      "row_count": 546
+    },
+    {
+      "filename": "students.csv",
+      "sha256": "bbe97b64c22666dcad0bdb1d1183b40b4f06b9a8655f7c47b1f833125fea5fa5",
+      "row_count": 135
+    },
+    {
+      "filename": "survey_responses.csv",
+      "sha256": "bea5db27406dcad70f6896422186103640b07e431b69d0ad2ccc44c92b4e36e9",
+      "row_count": 528
+    },
+    {
+      "filename": "surveys.csv",
+      "sha256": "d451ee7b5b15ad0aa75fc6cdf60a640c2373c1d8e8a013a5612c1588cf3c9ee1",
+      "row_count": 3
+    },
+    {
+      "filename": "tutors.csv",
+      "sha256": "b8c85ef7c13e0bcf390c70c518b744f0fd239f7d8cd6813e6ca764bcd2cab647",
+      "row_count": 9
+    }
+  ]
+}

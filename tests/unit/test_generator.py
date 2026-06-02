@@ -451,6 +451,44 @@ class TestSchemaConformanceOutcomes:
         rows = _read_csv(outcomes_dir / "monthly_satisfaction_summary.csv")
         assert required <= set(rows[0].keys())
 
+    def test_monthly_satisfaction_three_months(self, outcomes_dir: Path) -> None:
+        """monthly_satisfaction_summary.csv must contain rows for all three months."""
+        rows = _read_csv(outcomes_dir / "monthly_satisfaction_summary.csv")
+        months = {r["month_label"] for r in rows}
+        assert months == set(spec.MONTHS), (
+            f"Expected satisfaction rows for months {spec.MONTHS}, got {sorted(months)}"
+        )
+
+    def test_monthly_satisfaction_pk_unique(self, outcomes_dir: Path) -> None:
+        """monthly_satisfaction_summary summary_id must be unique."""
+        rows = _read_csv(outcomes_dir / "monthly_satisfaction_summary.csv")
+        ids = [r["summary_id"] for r in rows]
+        assert len(ids) == len(set(ids))
+
+    def test_ground_truth_present(self, outcomes_dir: Path) -> None:
+        """ground_truth.json must exist in the outcomes pack."""
+        assert (outcomes_dir / "ground_truth.json").exists(), "Missing ground_truth.json"
+
+    def test_ground_truth_keys(self, outcomes_dir: Path) -> None:
+        """ground_truth.json must contain all required top-level keys."""
+        required = {
+            "pack_id",
+            "seed",
+            "monthly_attendance_rate",
+            "program_wide_attendance_rate",
+            "monthly_satisfaction",
+            "satisfaction_dip_realized",
+            "monthly_cancellation_rate",
+            "iep_attendance_rate",
+            "non_iep_attendance_rate",
+            "iep_attendance_gap_pp",
+            "suppressed_low_n_subgroups",
+        }
+        data = _read_json(outcomes_dir / "ground_truth.json")
+        assert required <= set(data.keys())
+        assert data["pack_id"] == "pack_outcomes"
+        assert data["seed"] == SEED
+
     def test_monthly_attendance_pk_unique(self, outcomes_dir: Path) -> None:
         """monthly_attendance_summary summary_id must be unique."""
         rows = _read_csv(outcomes_dir / "monthly_attendance_summary.csv")
@@ -582,6 +620,48 @@ class TestSignals:
         assert non_first, "No non-first month rows found"
         with_delta = [r for r in non_first if r["mom_attendance_delta"] != ""]
         assert with_delta, "No mom_attendance_delta values found in non-first months"
+
+    # Signal 4: Monthly satisfaction dip and recovery
+    def test_satisfaction_dip_present(self, outcomes_dir: Path) -> None:
+        """October satisfaction must be below both September and November (dip signal)."""
+        rows = _read_csv(outcomes_dir / "monthly_satisfaction_summary.csv")
+        # Focus on student_satisfaction as the primary signal
+        student_rows = [r for r in rows if r["survey_type"] == "student_satisfaction"]
+        assert len(student_rows) == 3, (
+            f"Expected 3 student_satisfaction rows (one per month), got {len(student_rows)}"
+        )
+        by_month = {r["month_label"]: float(r["avg_score"]) for r in student_rows}
+        months = sorted(spec.MONTHS)
+        sep_score = by_month[months[0]]  # 2025-09
+        oct_score = by_month[months[1]]  # 2025-10 (dip month)
+        nov_score = by_month[months[2]]  # 2025-11
+        assert oct_score < sep_score, (
+            f"Expected Oct ({oct_score}) < Sep ({sep_score}) for satisfaction dip"
+        )
+        assert oct_score < nov_score, (
+            f"Expected Oct ({oct_score}) < Nov ({nov_score}) for satisfaction recovery"
+        )
+
+    def test_satisfaction_dip_magnitude(self, outcomes_dir: Path) -> None:
+        """October satisfaction dip must be at least half of SATISFACTION_DIP_MAGNITUDE."""
+        rows = _read_csv(outcomes_dir / "monthly_satisfaction_summary.csv")
+        student_rows = [r for r in rows if r["survey_type"] == "student_satisfaction"]
+        by_month = {r["month_label"]: float(r["avg_score"]) for r in student_rows}
+        months = sorted(spec.MONTHS)
+        sep_score = by_month[months[0]]
+        oct_score = by_month[months[1]]
+        dip = sep_score - oct_score
+        min_dip = spec.SATISFACTION_DIP_MAGNITUDE * 0.5
+        assert dip >= min_dip, (
+            f"Satisfaction dip ({dip:.4f}) is below minimum expected ({min_dip:.4f})"
+        )
+
+    def test_ground_truth_dip_confirmed(self, outcomes_dir: Path) -> None:
+        """ground_truth.json must confirm the satisfaction dip."""
+        data = _read_json(outcomes_dir / "ground_truth.json")
+        assert data["satisfaction_dip_realized"]["dip_confirmed"] is True, (
+            "ground_truth.json: satisfaction_dip_realized.dip_confirmed is not True"
+        )
 
     # Signal 2: Low-N AIAN subgroup suppressed
     def test_aian_subgroup_suppressed(self, equity_dir: Path) -> None:

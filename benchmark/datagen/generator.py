@@ -783,85 +783,257 @@ def _compute_monthly_attendance(
     return rows
 
 
-def _compute_monthly_satisfaction(surveys: Table, survey_responses: Table) -> Table:
-    """Generate ``monthly_satisfaction_summary.csv``.
+def _gen_monthly_satisfaction_real(seed: int) -> Table:
+    """Generate ``monthly_satisfaction_summary.csv`` with the realized dip signal.
 
-    Aggregates survey responses by (school_id=program-wide, survey_type, month).
-    Uses the administered_date month as the month_label.
+    Produces a genuine three-month series (Sep / Oct / Nov) for each survey type,
+    reflecting the baseline → October dip → November recovery pattern defined by
+    ``spec.SATISFACTION_*`` constants.
+
+    Uses a **dedicated, independently-seeded** RNG (``seed + 9999``) that is
+    created after all other generation is complete, so it cannot affect the draw
+    order of any other table and preserves byte-identity for the Operations and
+    Equity & Research packs.
+
+    Response counts are synthesized as plausible monthly cohort sizes.  Invited
+    counts are approximate program-wide totals per survey type.
 
     Args:
-        surveys: Generated survey rows.
-        survey_responses: Generated survey response rows.
+        seed: Pack-level integer seed (same value passed to ``generate_outcomes``).
 
     Returns:
-        List of monthly satisfaction summary row dicts.
+        List of monthly satisfaction summary row dicts — 9 rows total
+        (3 survey types × 3 months), sorted by (survey_type, month_label).
     """
-    # Map survey_id → (survey_type, administered_month, school_id=None for program-level)
-    survey_meta: dict[str, tuple[str, str]] = {}
-    for s in surveys:
-        ml = str(s["administered_date"])[:7]
-        survey_meta[str(s["survey_id"])] = (str(s["survey_type"]), ml)
+    # Dedicated RNG — isolated from the main generation pipeline.
+    sat_rng = random.Random(seed + 9999)
 
-    # Accumulate scores
-    agg: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for resp in survey_responses:
-        sv_id = str(resp["survey_id"])
-        if sv_id not in survey_meta:
-            continue
-        stype, ml = survey_meta[sv_id]
-        key = (spec.SCHOOL_IDS[0], stype, ml)  # program-level (first school as proxy)
-        if key not in agg:
-            agg[key] = {"scores": [], "responded": 0, "invited": 0}
-        raw = str(resp["response_value"])
-        try:
-            val = float(raw)
-            agg[key]["scores"].append(val)
-        except ValueError:
-            pass
-        agg[key]["responded"] += 1
+    survey_types = sorted(spec.SURVEY_TYPES)  # deterministic ordering
 
-    # Add invited counts from surveys
-    for s in surveys:
-        sv_id = str(s["survey_id"])
-        if sv_id not in survey_meta:
-            continue
-        stype, ml = survey_meta[sv_id]
-        key = (spec.SCHOOL_IDS[0], stype, ml)
-        if key in agg:
-            agg[key]["invited"] = int(str(s["total_invited"]))
+    # Approximate total invited per survey type
+    total_students = sum(spec.STUDENTS_PER_SCHOOL)
+    total_tutors = sum(spec.TUTORS_PER_SCHOOL)
+    invited_by_type: dict[str, int] = {
+        "parent_feedback": total_students,
+        "student_satisfaction": total_students,
+        "tutor_self_eval": total_tutors,
+    }
 
     rows: Table = []
-    prev_score: dict[tuple[str, str], float | None] = {}
     idx = 1
 
-    for (school_id, stype, ml), data in sorted(agg.items()):
-        scores: list[float] = data["scores"]
-        avg_sc: float | None = round(sum(scores) / len(scores), 4) if scores else None
-        responded = data["responded"]
-        invited = data.get("invited", 0)
-        resp_rate: float | None = round(responded / invited, 4) if invited > 0 else None
+    for stype in survey_types:
+        n_invited = invited_by_type.get(stype, total_students)
+        prev_score: float | None = None
 
-        prev_k2 = (stype, school_id)
-        mom_delta: float | None = None
-        if prev_k2 in prev_score and prev_score[prev_k2] is not None and avg_sc is not None:
-            mom_delta = round(avg_sc - prev_score[prev_k2], 4)  # type: ignore[operator]
-        prev_score[prev_k2] = avg_sc
+        for mi, month_label in enumerate(sorted(spec.MONTHS)):
+            # Realized avg_score from spec signal with small jitter
+            avg_sc = round(
+                mx.satisfaction_score(
+                    month_index=mi,
+                    baseline=spec.SATISFACTION_BASELINE,
+                    dip_month=spec.SATISFACTION_DIP_MONTH,
+                    dip_magnitude=spec.SATISFACTION_DIP_MAGNITUDE,
+                    recovery=spec.SATISFACTION_RECOVERY,
+                    rng=sat_rng,
+                ),
+                4,
+            )
 
-        rows.append(
-            {
-                "summary_id": f"MSS-{idx:04d}",
-                "program_id": spec.PROGRAM_ID,
-                "school_id": school_id,
-                "survey_type": stype,
-                "month_label": ml,
-                "responses_count": responded,
-                "avg_score": avg_sc if avg_sc is not None else "",
-                "response_rate": resp_rate if resp_rate is not None else "",
-                "mom_score_delta": mom_delta if mom_delta is not None else "",
-            }
-        )
-        idx += 1
+            # Plausible response count: 40–70% of invited, with per-month noise
+            response_rate_frac = round(sat_rng.uniform(0.40, 0.70), 4)
+            responses_count = round(n_invited * response_rate_frac)
+
+            resp_rate = round(responses_count / n_invited, 4) if n_invited > 0 else None
+
+            mom_delta: float | None = None
+            if prev_score is not None:
+                mom_delta = round(avg_sc - prev_score, 4)
+            prev_score = avg_sc
+
+            rows.append(
+                {
+                    "summary_id": f"MSS-{idx:04d}",
+                    "program_id": spec.PROGRAM_ID,
+                    "school_id": spec.SCHOOL_IDS[0],
+                    "survey_type": stype,
+                    "month_label": month_label,
+                    "responses_count": responses_count,
+                    "avg_score": avg_sc,
+                    "response_rate": resp_rate if resp_rate is not None else "",
+                    "mom_score_delta": mom_delta if mom_delta is not None else "",
+                }
+            )
+            idx += 1
+
     return rows
+
+
+def _compute_ground_truth(
+    monthly_att: Table,
+    monthly_sat: Table,
+    sessions: Table,
+    students: Table,
+    attendance: Table,
+    seed: int,
+) -> dict[str, Any]:
+    """Compute the ground-truth manifest from actual generated data.
+
+    Derives realized signal values from the generated tables so that B-task
+    authors can assert exact numbers.  All values are computed from the data,
+    not from ``spec.py`` input constants.
+
+    Args:
+        monthly_att: Generated ``monthly_attendance_summary`` rows.
+        monthly_sat: Generated ``monthly_satisfaction_summary`` rows.
+        sessions: Generated ``sessions`` rows.
+        students: Generated ``students`` rows.
+        attendance: Generated ``attendance`` rows.
+        seed: Integer seed used for this generation run.
+
+    Returns:
+        Dictionary suitable for ``ground_truth.json``.
+    """
+    # -----------------------------------------------------------------------
+    # Attendance: per-month program-wide rates
+    # -----------------------------------------------------------------------
+    att_by_month: dict[str, list[float]] = {}
+    for row in monthly_att:
+        ml = str(row["month_label"])
+        val = row["attendance_rate"]
+        if val != "" and val is not None:
+            att_by_month.setdefault(ml, []).append(float(str(val)))
+
+    monthly_attendance_rate: dict[str, float] = {}
+    for ml in sorted(att_by_month):
+        rates = att_by_month[ml]
+        # Weighted by school (equal weight here — schools differ in session count)
+        monthly_attendance_rate[ml] = round(sum(rates) / len(rates), 4)
+
+    # True program-wide rate: total attended / total slots across all schools/months
+    total_slots = 0
+    total_attended = 0
+    for att in attendance:
+        total_slots += 1
+        if str(att["attended"]) == "true":
+            total_attended += 1
+    program_wide_attendance_rate = (
+        round(total_attended / total_slots, 4) if total_slots > 0 else 0.0
+    )
+
+    # -----------------------------------------------------------------------
+    # Monthly satisfaction: per survey_type per month
+    # -----------------------------------------------------------------------
+    monthly_satisfaction: dict[str, dict[str, Any]] = {}
+    for row in monthly_sat:
+        stype = str(row["survey_type"])
+        ml = str(row["month_label"])
+        avg_sc = row["avg_score"]
+        monthly_satisfaction.setdefault(stype, {})[ml] = (
+            float(str(avg_sc)) if avg_sc != "" and avg_sc is not None else None
+        )
+
+    # Summarize the student_satisfaction signal for the dip
+    sat_months = sorted(spec.MONTHS)
+    dip_month_label = sat_months[spec.SATISFACTION_DIP_MONTH]
+    pre_dip_months = [m for i, m in enumerate(sat_months) if i < spec.SATISFACTION_DIP_MONTH]
+    post_dip_months = [m for i, m in enumerate(sat_months) if i > spec.SATISFACTION_DIP_MONTH]
+
+    student_sat = monthly_satisfaction.get("student_satisfaction", {})
+    satisfaction_dip_realized: dict[str, Any] = {
+        "dip_month": dip_month_label,
+        "scores_by_month": {ml: student_sat.get(ml) for ml in sat_months},
+        "dip_confirmed": (
+            student_sat.get(dip_month_label) is not None
+            and all(
+                (student_sat.get(m) or 0) > (student_sat.get(dip_month_label) or 99)
+                for m in pre_dip_months + post_dip_months
+                if student_sat.get(m) is not None
+            )
+        ),
+    }
+
+    # -----------------------------------------------------------------------
+    # Monthly cancellation rate
+    # -----------------------------------------------------------------------
+    canc_by_month: dict[str, dict[str, int]] = {}
+    for sess in sessions:
+        d = date.fromisoformat(str(sess["scheduled_date"]))
+        ml = f"{d.year}-{d.month:02d}"
+        canc_by_month.setdefault(ml, {"scheduled": 0, "cancelled": 0})
+        canc_by_month[ml]["scheduled"] += 1
+        status = str(sess["status"])
+        if status.startswith("cancelled") or status == "no_show":
+            canc_by_month[ml]["cancelled"] += 1
+
+    monthly_cancellation_rate: dict[str, float] = {
+        ml: round(data["cancelled"] / data["scheduled"], 4)
+        for ml, data in sorted(canc_by_month.items())
+        if data["scheduled"] > 0
+    }
+
+    # -----------------------------------------------------------------------
+    # IEP attendance gap
+    # -----------------------------------------------------------------------
+    iep_attended = 0
+    iep_total = 0
+    non_iep_attended = 0
+    non_iep_total = 0
+
+    iep_lookup: dict[str, bool] = {
+        str(st["student_id"]): str(st["iep"]) == "true" for st in students
+    }
+    for att in attendance:
+        stuid = str(att["student_id"])
+        is_iep = iep_lookup.get(stuid, False)
+        if is_iep:
+            iep_total += 1
+            if str(att["attended"]) == "true":
+                iep_attended += 1
+        else:
+            non_iep_total += 1
+            if str(att["attended"]) == "true":
+                non_iep_attended += 1
+
+    iep_rate = round(iep_attended / iep_total, 4) if iep_total > 0 else None
+    non_iep_rate = round(non_iep_attended / non_iep_total, 4) if non_iep_total > 0 else None
+    iep_gap_pp: float | None = (
+        round((non_iep_rate - iep_rate) * 100, 2)
+        if iep_rate is not None and non_iep_rate is not None
+        else None
+    )
+
+    # -----------------------------------------------------------------------
+    # Suppressed low-N subgroups (from students table — AIAN specifically)
+    # -----------------------------------------------------------------------
+    race_counts: dict[str, int] = {}
+    for st in students:
+        rc = str(st.get("race_ethnicity") or "Unknown")
+        race_counts[rc] = race_counts.get(rc, 0) + 1
+
+    suppressed_subgroups = [
+        {"subgroup_dimension": "race_ethnicity", "subgroup_value": rc, "n": n}
+        for rc, n in sorted(race_counts.items())
+        if n < spec.SUPPRESSION_THRESHOLD
+    ]
+
+    return {
+        "pack_id": "pack_outcomes",
+        "seed": seed,
+        "note": (
+            "All values computed from the generated data — not from spec.py input constants. "
+            "B-task authors should assert these realized numbers, not the spec targets."
+        ),
+        "monthly_attendance_rate": monthly_attendance_rate,
+        "program_wide_attendance_rate": program_wide_attendance_rate,
+        "monthly_satisfaction": monthly_satisfaction,
+        "satisfaction_dip_realized": satisfaction_dip_realized,
+        "monthly_cancellation_rate": monthly_cancellation_rate,
+        "iep_attendance_rate": iep_rate,
+        "non_iep_attendance_rate": non_iep_rate,
+        "iep_attendance_gap_pp": iep_gap_pp,
+        "suppressed_low_n_subgroups": suppressed_subgroups,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1258,9 +1430,18 @@ def generate_outcomes(out_dir: Path, seed: int) -> Path:
     surveys = _gen_surveys(rng)
     survey_responses = _gen_survey_responses(surveys, students, rng)
 
-    # MoM tables (extra RNG for jitter)
+    # MoM tables: monthly_attendance uses the main RNG; monthly_satisfaction
+    # uses a dedicated isolated RNG to preserve byte-identity of other packs.
     monthly_att = _compute_monthly_attendance(sessions, attendance, groups, rng)
-    monthly_sat = _compute_monthly_satisfaction(surveys, survey_responses)
+    # NOTE: _gen_monthly_satisfaction_real uses random.Random(seed + 9999) internally —
+    # it does NOT consume draws from the shared `rng` so operations/equity output is
+    # unaffected.
+    monthly_sat = _gen_monthly_satisfaction_real(seed)
+
+    # Ground-truth manifest: computed from actual generated data (not spec constants).
+    ground_truth = _compute_ground_truth(
+        monthly_att, monthly_sat, sessions, students, attendance, seed
+    )
 
     _write_csv(pack_dir / "programs.csv", programs)
     _write_csv(pack_dir / "schools.csv", schools)
@@ -1276,6 +1457,7 @@ def generate_outcomes(out_dir: Path, seed: int) -> Path:
 
     ctx = _gen_program_context(seed)
     _write_json(pack_dir / "program_context.json", ctx)
+    _write_json(pack_dir / "ground_truth.json", ground_truth)
 
     generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     _write_manifest(pack_dir, "pack_outcomes", seed, generated_at)

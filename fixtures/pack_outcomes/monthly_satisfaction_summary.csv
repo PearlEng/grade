@@ -1,0 +1,10 @@
+summary_id,program_id,school_id,survey_type,month_label,responses_count,avg_score,response_rate,mom_score_delta
+MSS-0001,PROG-001,SCH-001,parent_feedback,2025-09,67,3.8765,0.4963,
+MSS-0002,PROG-001,SCH-001,parent_feedback,2025-10,73,3.4486,0.5407,-0.4279
+MSS-0003,PROG-001,SCH-001,parent_feedback,2025-11,61,3.8731,0.4519,0.4245
+MSS-0004,PROG-001,SCH-001,student_satisfaction,2025-09,78,3.8798,0.5778,
+MSS-0005,PROG-001,SCH-001,student_satisfaction,2025-10,70,3.3827,0.5185,-0.4971
+MSS-0006,PROG-001,SCH-001,student_satisfaction,2025-11,83,3.8689,0.6148,0.4862
+MSS-0007,PROG-001,SCH-001,tutor_self_eval,2025-09,6,3.8157,0.6667,
+MSS-0008,PROG-001,SCH-001,tutor_self_eval,2025-10,6,3.3202,0.6667,-0.4955
+MSS-0009,PROG-001,SCH-001,tutor_self_eval,2025-11,6,3.7065,0.6667,0.3863

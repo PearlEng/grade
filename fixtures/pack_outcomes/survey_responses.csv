@@ -1,0 +1,529 @@
+response_id,survey_id,student_id,question_code,question_text,response_value,response_type,responded_at
+RSP-000001,SRV-001,STU-00013,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T09:20:00Z
+RSP-000002,SRV-001,STU-00013,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T13:51:00Z
+RSP-000003,SRV-001,STU-00013,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T17:16:00Z
+RSP-000004,SRV-001,STU-00101,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T13:02:00Z
+RSP-000005,SRV-001,STU-00101,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T15:06:00Z
+RSP-000006,SRV-001,STU-00101,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T10:29:00Z
+RSP-000007,SRV-001,STU-00101,NPS_SCORE,How likely are you to recommend this program?,0,nps,2025-11-15T13:45:00Z
+RSP-000008,SRV-001,STU-00093,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T18:01:00Z
+RSP-000009,SRV-001,STU-00093,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T08:00:00Z
+RSP-000010,SRV-001,STU-00093,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T18:39:00Z
+RSP-000011,SRV-001,STU-00093,NPS_SCORE,How likely are you to recommend this program?,4,nps,2025-11-15T20:46:00Z
+RSP-000012,SRV-001,STU-00115,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T09:00:00Z
+RSP-000013,SRV-001,STU-00115,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T08:56:00Z
+RSP-000014,SRV-001,STU-00115,NPS_SCORE,How likely are you to recommend this program?,0,nps,2025-11-15T16:39:00Z
+RSP-000015,SRV-001,STU-00086,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T09:04:00Z
+RSP-000016,SRV-001,STU-00086,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T09:14:00Z
+RSP-000017,SRV-001,STU-00086,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T17:39:00Z
+RSP-000018,SRV-001,STU-00086,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T13:22:00Z
+RSP-000019,SRV-001,STU-00091,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T13:43:00Z
+RSP-000020,SRV-001,STU-00091,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T08:23:00Z
+RSP-000021,SRV-001,STU-00091,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T08:26:00Z
+RSP-000022,SRV-001,STU-00091,NPS_SCORE,How likely are you to recommend this program?,9,nps,2025-11-15T17:00:00Z
+RSP-000023,SRV-001,STU-00021,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T17:27:00Z
+RSP-000024,SRV-001,STU-00021,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T08:04:00Z
+RSP-000025,SRV-001,STU-00021,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T15:16:00Z
+RSP-000026,SRV-001,STU-00094,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T15:32:00Z
+RSP-000027,SRV-001,STU-00094,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T19:56:00Z
+RSP-000028,SRV-001,STU-00094,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T17:54:00Z
+RSP-000029,SRV-001,STU-00094,NPS_SCORE,How likely are you to recommend this program?,9,nps,2025-11-15T19:23:00Z
+RSP-000030,SRV-001,STU-00123,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T08:25:00Z
+RSP-000031,SRV-001,STU-00123,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T20:54:00Z
+RSP-000032,SRV-001,STU-00123,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T13:00:00Z
+RSP-000033,SRV-001,STU-00123,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T13:53:00Z
+RSP-000034,SRV-001,STU-00051,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T13:16:00Z
+RSP-000035,SRV-001,STU-00051,NPS_SCORE,How likely are you to recommend this program?,4,nps,2025-11-15T09:29:00Z
+RSP-000036,SRV-001,STU-00129,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T17:03:00Z
+RSP-000037,SRV-001,STU-00129,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T19:49:00Z
+RSP-000038,SRV-001,STU-00129,NPS_SCORE,How likely are you to recommend this program?,4,nps,2025-11-15T13:54:00Z
+RSP-000039,SRV-001,STU-00027,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T08:41:00Z
+RSP-000040,SRV-001,STU-00027,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T18:02:00Z
+RSP-000041,SRV-001,STU-00073,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T18:48:00Z
+RSP-000042,SRV-001,STU-00073,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T14:32:00Z
+RSP-000043,SRV-001,STU-00073,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T10:56:00Z
+RSP-000044,SRV-001,STU-00073,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T14:25:00Z
+RSP-000045,SRV-001,STU-00024,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T17:59:00Z
+RSP-000046,SRV-001,STU-00024,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T15:21:00Z
+RSP-000047,SRV-001,STU-00024,NPS_SCORE,How likely are you to recommend this program?,9,nps,2025-11-15T16:50:00Z
+RSP-000048,SRV-001,STU-00128,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T13:54:00Z
+RSP-000049,SRV-001,STU-00128,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T09:10:00Z
+RSP-000050,SRV-001,STU-00128,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T20:27:00Z
+RSP-000051,SRV-001,STU-00128,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T08:14:00Z
+RSP-000052,SRV-001,STU-00106,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T14:42:00Z
+RSP-000053,SRV-001,STU-00106,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T20:00:00Z
+RSP-000054,SRV-001,STU-00106,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T15:23:00Z
+RSP-000055,SRV-001,STU-00106,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T09:16:00Z
+RSP-000056,SRV-001,STU-00002,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T08:44:00Z
+RSP-000057,SRV-001,STU-00002,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T15:07:00Z
+RSP-000058,SRV-001,STU-00002,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T11:45:00Z
+RSP-000059,SRV-001,STU-00077,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T10:12:00Z
+RSP-000060,SRV-001,STU-00077,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T09:41:00Z
+RSP-000061,SRV-001,STU-00077,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T09:22:00Z
+RSP-000062,SRV-001,STU-00077,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T20:07:00Z
+RSP-000063,SRV-001,STU-00005,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T19:00:00Z
+RSP-000064,SRV-001,STU-00005,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T09:27:00Z
+RSP-000065,SRV-001,STU-00070,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T13:21:00Z
+RSP-000066,SRV-001,STU-00070,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T19:37:00Z
+RSP-000067,SRV-001,STU-00070,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T19:29:00Z
+RSP-000068,SRV-001,STU-00070,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T10:45:00Z
+RSP-000069,SRV-001,STU-00043,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T16:33:00Z
+RSP-000070,SRV-001,STU-00043,NPS_SCORE,How likely are you to recommend this program?,5,nps,2025-11-15T11:30:00Z
+RSP-000071,SRV-001,STU-00099,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T11:04:00Z
+RSP-000072,SRV-001,STU-00099,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T17:09:00Z
+RSP-000073,SRV-001,STU-00099,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T15:57:00Z
+RSP-000074,SRV-001,STU-00042,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T12:55:00Z
+RSP-000075,SRV-001,STU-00042,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T19:48:00Z
+RSP-000076,SRV-001,STU-00014,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T08:11:00Z
+RSP-000077,SRV-001,STU-00014,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T12:34:00Z
+RSP-000078,SRV-001,STU-00014,NPS_SCORE,How likely are you to recommend this program?,3,nps,2025-11-15T10:42:00Z
+RSP-000079,SRV-001,STU-00006,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T12:05:00Z
+RSP-000080,SRV-001,STU-00006,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T12:41:00Z
+RSP-000081,SRV-001,STU-00006,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T19:55:00Z
+RSP-000082,SRV-001,STU-00006,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T09:26:00Z
+RSP-000083,SRV-001,STU-00064,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T17:38:00Z
+RSP-000084,SRV-001,STU-00064,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T18:08:00Z
+RSP-000085,SRV-001,STU-00064,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T10:02:00Z
+RSP-000086,SRV-001,STU-00064,NPS_SCORE,How likely are you to recommend this program?,0,nps,2025-11-15T12:59:00Z
+RSP-000087,SRV-001,STU-00081,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T11:54:00Z
+RSP-000088,SRV-001,STU-00081,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T13:54:00Z
+RSP-000089,SRV-001,STU-00081,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T11:23:00Z
+RSP-000090,SRV-001,STU-00090,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T20:48:00Z
+RSP-000091,SRV-001,STU-00090,NPS_SCORE,How likely are you to recommend this program?,0,nps,2025-11-15T14:16:00Z
+RSP-000092,SRV-001,STU-00040,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T18:52:00Z
+RSP-000093,SRV-001,STU-00040,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T11:59:00Z
+RSP-000094,SRV-001,STU-00040,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T15:22:00Z
+RSP-000095,SRV-001,STU-00121,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T09:39:00Z
+RSP-000096,SRV-001,STU-00121,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T20:04:00Z
+RSP-000097,SRV-001,STU-00121,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T17:05:00Z
+RSP-000098,SRV-001,STU-00121,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T19:04:00Z
+RSP-000099,SRV-001,STU-00004,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T17:02:00Z
+RSP-000100,SRV-001,STU-00004,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T17:47:00Z
+RSP-000101,SRV-001,STU-00004,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T09:50:00Z
+RSP-000102,SRV-001,STU-00131,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T12:04:00Z
+RSP-000103,SRV-001,STU-00131,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T10:09:00Z
+RSP-000104,SRV-001,STU-00131,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T09:26:00Z
+RSP-000105,SRV-001,STU-00131,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T08:23:00Z
+RSP-000106,SRV-001,STU-00118,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T14:53:00Z
+RSP-000107,SRV-001,STU-00118,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T15:48:00Z
+RSP-000108,SRV-001,STU-00118,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T14:14:00Z
+RSP-000109,SRV-001,STU-00118,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T09:36:00Z
+RSP-000110,SRV-001,STU-00112,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T13:23:00Z
+RSP-000111,SRV-001,STU-00112,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T12:41:00Z
+RSP-000112,SRV-001,STU-00030,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T11:43:00Z
+RSP-000113,SRV-001,STU-00030,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T19:14:00Z
+RSP-000114,SRV-001,STU-00030,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T08:19:00Z
+RSP-000115,SRV-001,STU-00030,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T10:29:00Z
+RSP-000116,SRV-001,STU-00135,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T14:08:00Z
+RSP-000117,SRV-001,STU-00135,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T09:18:00Z
+RSP-000118,SRV-001,STU-00135,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T11:50:00Z
+RSP-000119,SRV-001,STU-00135,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T19:21:00Z
+RSP-000120,SRV-001,STU-00011,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T19:20:00Z
+RSP-000121,SRV-001,STU-00011,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T09:43:00Z
+RSP-000122,SRV-001,STU-00011,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T18:56:00Z
+RSP-000123,SRV-001,STU-00011,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T19:31:00Z
+RSP-000124,SRV-001,STU-00100,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T18:39:00Z
+RSP-000125,SRV-001,STU-00100,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T10:40:00Z
+RSP-000126,SRV-001,STU-00100,NPS_SCORE,How likely are you to recommend this program?,4,nps,2025-11-15T19:05:00Z
+RSP-000127,SRV-001,STU-00060,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T18:24:00Z
+RSP-000128,SRV-001,STU-00060,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T16:21:00Z
+RSP-000129,SRV-001,STU-00060,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T19:18:00Z
+RSP-000130,SRV-001,STU-00060,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T13:42:00Z
+RSP-000131,SRV-001,STU-00065,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T11:16:00Z
+RSP-000132,SRV-001,STU-00065,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T20:44:00Z
+RSP-000133,SRV-001,STU-00065,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T19:53:00Z
+RSP-000134,SRV-001,STU-00050,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T15:25:00Z
+RSP-000135,SRV-001,STU-00050,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T13:55:00Z
+RSP-000136,SRV-001,STU-00050,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T19:36:00Z
+RSP-000137,SRV-001,STU-00098,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T13:50:00Z
+RSP-000138,SRV-001,STU-00098,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T19:57:00Z
+RSP-000139,SRV-001,STU-00098,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T19:49:00Z
+RSP-000140,SRV-001,STU-00098,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T13:12:00Z
+RSP-000141,SRV-001,STU-00103,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T14:23:00Z
+RSP-000142,SRV-001,STU-00103,Q2,My tutor explains things clearly.,3,likert_5,2025-11-15T14:24:00Z
+RSP-000143,SRV-001,STU-00103,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T20:32:00Z
+RSP-000144,SRV-001,STU-00103,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T14:13:00Z
+RSP-000145,SRV-001,STU-00088,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T09:11:00Z
+RSP-000146,SRV-001,STU-00088,Q2,My tutor explains things clearly.,3,likert_5,2025-11-15T08:34:00Z
+RSP-000147,SRV-001,STU-00088,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T17:21:00Z
+RSP-000148,SRV-001,STU-00088,NPS_SCORE,How likely are you to recommend this program?,9,nps,2025-11-15T12:32:00Z
+RSP-000149,SRV-001,STU-00003,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T17:09:00Z
+RSP-000150,SRV-001,STU-00003,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T17:24:00Z
+RSP-000151,SRV-001,STU-00003,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T10:07:00Z
+RSP-000152,SRV-001,STU-00019,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T08:29:00Z
+RSP-000153,SRV-001,STU-00019,Q2,My tutor explains things clearly.,3,likert_5,2025-11-15T10:15:00Z
+RSP-000154,SRV-001,STU-00019,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T09:17:00Z
+RSP-000155,SRV-001,STU-00019,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T12:03:00Z
+RSP-000156,SRV-001,STU-00132,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T18:34:00Z
+RSP-000157,SRV-001,STU-00132,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T20:57:00Z
+RSP-000158,SRV-001,STU-00132,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T12:49:00Z
+RSP-000159,SRV-001,STU-00038,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T11:45:00Z
+RSP-000160,SRV-001,STU-00038,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T17:26:00Z
+RSP-000161,SRV-001,STU-00038,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T11:06:00Z
+RSP-000162,SRV-001,STU-00038,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T08:01:00Z
+RSP-000163,SRV-001,STU-00057,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T15:33:00Z
+RSP-000164,SRV-001,STU-00057,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T10:59:00Z
+RSP-000165,SRV-001,STU-00057,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T15:05:00Z
+RSP-000166,SRV-001,STU-00095,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T12:20:00Z
+RSP-000167,SRV-001,STU-00095,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T19:57:00Z
+RSP-000168,SRV-001,STU-00007,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T20:29:00Z
+RSP-000169,SRV-001,STU-00007,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T08:07:00Z
+RSP-000170,SRV-001,STU-00007,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T18:59:00Z
+RSP-000171,SRV-001,STU-00007,NPS_SCORE,How likely are you to recommend this program?,0,nps,2025-11-15T19:33:00Z
+RSP-000172,SRV-001,STU-00023,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T19:52:00Z
+RSP-000173,SRV-001,STU-00023,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T15:08:00Z
+RSP-000174,SRV-001,STU-00023,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T18:20:00Z
+RSP-000175,SRV-001,STU-00022,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T15:00:00Z
+RSP-000176,SRV-001,STU-00022,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T20:40:00Z
+RSP-000177,SRV-001,STU-00022,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T15:59:00Z
+RSP-000178,SRV-001,STU-00082,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T13:20:00Z
+RSP-000179,SRV-001,STU-00082,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T08:01:00Z
+RSP-000180,SRV-001,STU-00082,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T18:11:00Z
+RSP-000181,SRV-001,STU-00082,NPS_SCORE,How likely are you to recommend this program?,1,nps,2025-11-15T12:11:00Z
+RSP-000182,SRV-001,STU-00105,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T09:27:00Z
+RSP-000183,SRV-001,STU-00105,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T19:50:00Z
+RSP-000184,SRV-001,STU-00052,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T16:51:00Z
+RSP-000185,SRV-001,STU-00052,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T15:10:00Z
+RSP-000186,SRV-001,STU-00052,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T09:12:00Z
+RSP-000187,SRV-001,STU-00052,NPS_SCORE,How likely are you to recommend this program?,5,nps,2025-11-15T13:45:00Z
+RSP-000188,SRV-001,STU-00048,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T19:01:00Z
+RSP-000189,SRV-001,STU-00048,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T17:46:00Z
+RSP-000190,SRV-001,STU-00048,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T20:15:00Z
+RSP-000191,SRV-001,STU-00134,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T17:22:00Z
+RSP-000192,SRV-001,STU-00134,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T11:09:00Z
+RSP-000193,SRV-001,STU-00134,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T11:44:00Z
+RSP-000194,SRV-001,STU-00041,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T17:38:00Z
+RSP-000195,SRV-001,STU-00041,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T19:44:00Z
+RSP-000196,SRV-001,STU-00041,NPS_SCORE,How likely are you to recommend this program?,3,nps,2025-11-15T20:22:00Z
+RSP-000197,SRV-001,STU-00035,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T14:27:00Z
+RSP-000198,SRV-001,STU-00035,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T15:25:00Z
+RSP-000199,SRV-001,STU-00114,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T16:11:00Z
+RSP-000200,SRV-001,STU-00114,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T20:07:00Z
+RSP-000201,SRV-001,STU-00114,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T11:24:00Z
+RSP-000202,SRV-001,STU-00084,NPS_SCORE,How likely are you to recommend this program?,5,nps,2025-11-15T18:54:00Z
+RSP-000203,SRV-001,STU-00001,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T11:57:00Z
+RSP-000204,SRV-001,STU-00001,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T18:11:00Z
+RSP-000205,SRV-001,STU-00001,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T18:50:00Z
+RSP-000206,SRV-001,STU-00001,NPS_SCORE,How likely are you to recommend this program?,6,nps,2025-11-15T19:48:00Z
+RSP-000207,SRV-001,STU-00075,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T20:25:00Z
+RSP-000208,SRV-001,STU-00075,Q2,My tutor explains things clearly.,3,likert_5,2025-11-15T15:48:00Z
+RSP-000209,SRV-001,STU-00075,Q3,I feel more confident in this subject.,2,likert_5,2025-11-15T11:13:00Z
+RSP-000210,SRV-001,STU-00075,NPS_SCORE,How likely are you to recommend this program?,2,nps,2025-11-15T10:10:00Z
+RSP-000211,SRV-001,STU-00018,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T08:40:00Z
+RSP-000212,SRV-001,STU-00018,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T10:22:00Z
+RSP-000213,SRV-001,STU-00018,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T19:36:00Z
+RSP-000214,SRV-001,STU-00122,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T10:46:00Z
+RSP-000215,SRV-001,STU-00122,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T08:24:00Z
+RSP-000216,SRV-001,STU-00122,NPS_SCORE,How likely are you to recommend this program?,9,nps,2025-11-15T13:13:00Z
+RSP-000217,SRV-001,STU-00087,Q1,I enjoy my tutoring sessions.,1,likert_5,2025-11-15T14:15:00Z
+RSP-000218,SRV-001,STU-00087,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T20:15:00Z
+RSP-000219,SRV-001,STU-00087,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T08:17:00Z
+RSP-000220,SRV-001,STU-00133,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T12:06:00Z
+RSP-000221,SRV-001,STU-00133,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T15:42:00Z
+RSP-000222,SRV-001,STU-00133,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T12:49:00Z
+RSP-000223,SRV-001,STU-00046,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T08:56:00Z
+RSP-000224,SRV-001,STU-00046,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T20:24:00Z
+RSP-000225,SRV-001,STU-00046,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T20:18:00Z
+RSP-000226,SRV-001,STU-00008,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T17:53:00Z
+RSP-000227,SRV-001,STU-00008,Q2,My tutor explains things clearly.,3,likert_5,2025-11-15T14:04:00Z
+RSP-000228,SRV-001,STU-00008,Q3,I feel more confident in this subject.,3,likert_5,2025-11-15T20:30:00Z
+RSP-000229,SRV-001,STU-00119,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T09:51:00Z
+RSP-000230,SRV-001,STU-00119,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T13:05:00Z
+RSP-000231,SRV-001,STU-00119,NPS_SCORE,How likely are you to recommend this program?,4,nps,2025-11-15T09:04:00Z
+RSP-000232,SRV-001,STU-00125,Q1,I enjoy my tutoring sessions.,3,likert_5,2025-11-15T13:27:00Z
+RSP-000233,SRV-001,STU-00125,Q2,My tutor explains things clearly.,5,likert_5,2025-11-15T18:05:00Z
+RSP-000234,SRV-001,STU-00125,Q3,I feel more confident in this subject.,4,likert_5,2025-11-15T17:13:00Z
+RSP-000235,SRV-001,STU-00125,NPS_SCORE,How likely are you to recommend this program?,7,nps,2025-11-15T16:31:00Z
+RSP-000236,SRV-001,STU-00056,Q1,I enjoy my tutoring sessions.,2,likert_5,2025-11-15T08:30:00Z
+RSP-000237,SRV-001,STU-00056,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T08:16:00Z
+RSP-000238,SRV-001,STU-00056,NPS_SCORE,How likely are you to recommend this program?,10,nps,2025-11-15T08:04:00Z
+RSP-000239,SRV-001,STU-00124,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T09:08:00Z
+RSP-000240,SRV-001,STU-00124,Q2,My tutor explains things clearly.,1,likert_5,2025-11-15T10:19:00Z
+RSP-000241,SRV-001,STU-00124,NPS_SCORE,How likely are you to recommend this program?,3,nps,2025-11-15T20:45:00Z
+RSP-000242,SRV-001,STU-00049,Q1,I enjoy my tutoring sessions.,5,likert_5,2025-11-15T14:29:00Z
+RSP-000243,SRV-001,STU-00049,Q2,My tutor explains things clearly.,4,likert_5,2025-11-15T14:02:00Z
+RSP-000244,SRV-001,STU-00049,Q3,I feel more confident in this subject.,5,likert_5,2025-11-15T15:13:00Z
+RSP-000245,SRV-001,STU-00080,Q1,I enjoy my tutoring sessions.,4,likert_5,2025-11-15T11:05:00Z
+RSP-000246,SRV-001,STU-00080,Q2,My tutor explains things clearly.,2,likert_5,2025-11-15T10:28:00Z
+RSP-000247,SRV-001,STU-00080,Q3,I feel more confident in this subject.,1,likert_5,2025-11-15T15:21:00Z
+RSP-000248,SRV-001,STU-00080,NPS_SCORE,How likely are you to recommend this program?,8,nps,2025-11-15T16:39:00Z
+RSP-000249,SRV-002,STU-00122,TE3,Overall program quality rating.,3,likert_5,2025-11-20T12:12:00Z
+RSP-000250,SRV-002,STU-00108,TE2,I receive adequate support from program staff.,3,likert_4,2025-11-20T10:14:00Z
+RSP-000251,SRV-002,STU-00061,TE1,I feel prepared for each session.,3,likert_5,2025-11-20T15:51:00Z
+RSP-000252,SRV-002,STU-00061,TE2,I receive adequate support from program staff.,3,likert_4,2025-11-20T17:40:00Z
+RSP-000253,SRV-002,STU-00061,TE3,Overall program quality rating.,3,likert_5,2025-11-20T15:00:00Z
+RSP-000254,SRV-002,STU-00054,TE1,I feel prepared for each session.,1,likert_5,2025-11-20T10:26:00Z
+RSP-000255,SRV-002,STU-00054,TE2,I receive adequate support from program staff.,4,likert_4,2025-11-20T14:19:00Z
+RSP-000256,SRV-002,STU-00054,TE3,Overall program quality rating.,4,likert_5,2025-11-20T15:25:00Z
+RSP-000257,SRV-002,STU-00080,TE1,I feel prepared for each session.,4,likert_5,2025-11-20T17:28:00Z
+RSP-000258,SRV-002,STU-00080,TE2,I receive adequate support from program staff.,1,likert_4,2025-11-20T14:52:00Z
+RSP-000259,SRV-002,STU-00080,TE3,Overall program quality rating.,3,likert_5,2025-11-20T14:44:00Z
+RSP-000260,SRV-002,STU-00052,TE1,I feel prepared for each session.,3,likert_5,2025-11-20T13:02:00Z
+RSP-000261,SRV-002,STU-00052,TE3,Overall program quality rating.,3,likert_5,2025-11-20T19:14:00Z
+RSP-000262,SRV-003,STU-00121,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T17:54:00Z
+RSP-000263,SRV-003,STU-00121,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:10:00Z
+RSP-000264,SRV-003,STU-00051,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:03:00Z
+RSP-000265,SRV-003,STU-00051,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T15:48:00Z
+RSP-000266,SRV-003,STU-00010,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T11:18:00Z
+RSP-000267,SRV-003,STU-00010,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T13:21:00Z
+RSP-000268,SRV-003,STU-00099,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T10:54:00Z
+RSP-000269,SRV-003,STU-00099,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:00:00Z
+RSP-000270,SRV-003,STU-00070,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T12:24:00Z
+RSP-000271,SRV-003,STU-00070,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T19:39:00Z
+RSP-000272,SRV-003,STU-00070,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T08:09:00Z
+RSP-000273,SRV-003,STU-00110,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T09:08:00Z
+RSP-000274,SRV-003,STU-00110,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T19:55:00Z
+RSP-000275,SRV-003,STU-00110,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T13:33:00Z
+RSP-000276,SRV-003,STU-00048,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T11:21:00Z
+RSP-000277,SRV-003,STU-00048,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T08:35:00Z
+RSP-000278,SRV-003,STU-00048,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T17:39:00Z
+RSP-000279,SRV-003,STU-00119,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T12:45:00Z
+RSP-000280,SRV-003,STU-00119,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T11:16:00Z
+RSP-000281,SRV-003,STU-00119,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T14:14:00Z
+RSP-000282,SRV-003,STU-00057,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T08:56:00Z
+RSP-000283,SRV-003,STU-00057,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T11:53:00Z
+RSP-000284,SRV-003,STU-00011,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:54:00Z
+RSP-000285,SRV-003,STU-00011,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T15:18:00Z
+RSP-000286,SRV-003,STU-00011,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T11:41:00Z
+RSP-000287,SRV-003,STU-00015,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T19:37:00Z
+RSP-000288,SRV-003,STU-00015,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T20:52:00Z
+RSP-000289,SRV-003,STU-00113,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T08:35:00Z
+RSP-000290,SRV-003,STU-00113,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T19:45:00Z
+RSP-000291,SRV-003,STU-00113,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T12:24:00Z
+RSP-000292,SRV-003,STU-00082,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T10:56:00Z
+RSP-000293,SRV-003,STU-00082,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T18:42:00Z
+RSP-000294,SRV-003,STU-00082,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T12:04:00Z
+RSP-000295,SRV-003,STU-00073,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:19:00Z
+RSP-000296,SRV-003,STU-00073,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T08:09:00Z
+RSP-000297,SRV-003,STU-00073,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T08:10:00Z
+RSP-000298,SRV-003,STU-00084,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:25:00Z
+RSP-000299,SRV-003,STU-00084,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T20:21:00Z
+RSP-000300,SRV-003,STU-00046,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T11:12:00Z
+RSP-000301,SRV-003,STU-00046,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T20:14:00Z
+RSP-000302,SRV-003,STU-00018,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T09:13:00Z
+RSP-000303,SRV-003,STU-00122,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T11:01:00Z
+RSP-000304,SRV-003,STU-00122,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:29:00Z
+RSP-000305,SRV-003,STU-00122,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T18:57:00Z
+RSP-000306,SRV-003,STU-00090,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T13:59:00Z
+RSP-000307,SRV-003,STU-00090,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:09:00Z
+RSP-000308,SRV-003,STU-00090,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T17:22:00Z
+RSP-000309,SRV-003,STU-00049,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T11:57:00Z
+RSP-000310,SRV-003,STU-00049,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T12:41:00Z
+RSP-000311,SRV-003,STU-00049,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T09:57:00Z
+RSP-000312,SRV-003,STU-00029,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T15:10:00Z
+RSP-000313,SRV-003,STU-00029,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T12:45:00Z
+RSP-000314,SRV-003,STU-00042,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:08:00Z
+RSP-000315,SRV-003,STU-00042,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T09:51:00Z
+RSP-000316,SRV-003,STU-00042,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T09:29:00Z
+RSP-000317,SRV-003,STU-00027,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T18:51:00Z
+RSP-000318,SRV-003,STU-00007,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T19:26:00Z
+RSP-000319,SRV-003,STU-00007,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T18:56:00Z
+RSP-000320,SRV-003,STU-00007,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T15:41:00Z
+RSP-000321,SRV-003,STU-00089,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T13:52:00Z
+RSP-000322,SRV-003,STU-00089,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T17:50:00Z
+RSP-000323,SRV-003,STU-00089,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T12:03:00Z
+RSP-000324,SRV-003,STU-00129,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T11:34:00Z
+RSP-000325,SRV-003,STU-00129,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:50:00Z
+RSP-000326,SRV-003,STU-00129,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T13:32:00Z
+RSP-000327,SRV-003,STU-00076,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T10:09:00Z
+RSP-000328,SRV-003,STU-00076,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T20:37:00Z
+RSP-000329,SRV-003,STU-00076,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T14:25:00Z
+RSP-000330,SRV-003,STU-00060,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T19:16:00Z
+RSP-000331,SRV-003,STU-00060,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:31:00Z
+RSP-000332,SRV-003,STU-00060,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T15:36:00Z
+RSP-000333,SRV-003,STU-00093,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T20:11:00Z
+RSP-000334,SRV-003,STU-00002,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T16:29:00Z
+RSP-000335,SRV-003,STU-00002,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:44:00Z
+RSP-000336,SRV-003,STU-00002,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T14:51:00Z
+RSP-000337,SRV-003,STU-00023,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T08:42:00Z
+RSP-000338,SRV-003,STU-00023,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T15:54:00Z
+RSP-000339,SRV-003,STU-00130,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T19:02:00Z
+RSP-000340,SRV-003,STU-00130,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T17:09:00Z
+RSP-000341,SRV-003,STU-00130,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T17:39:00Z
+RSP-000342,SRV-003,STU-00045,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T10:38:00Z
+RSP-000343,SRV-003,STU-00045,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T15:06:00Z
+RSP-000344,SRV-003,STU-00125,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T19:16:00Z
+RSP-000345,SRV-003,STU-00125,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T15:11:00Z
+RSP-000346,SRV-003,STU-00021,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:09:00Z
+RSP-000347,SRV-003,STU-00068,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T17:56:00Z
+RSP-000348,SRV-003,STU-00068,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T11:47:00Z
+RSP-000349,SRV-003,STU-00101,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T11:12:00Z
+RSP-000350,SRV-003,STU-00101,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T12:28:00Z
+RSP-000351,SRV-003,STU-00101,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T12:32:00Z
+RSP-000352,SRV-003,STU-00108,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T16:38:00Z
+RSP-000353,SRV-003,STU-00108,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T08:17:00Z
+RSP-000354,SRV-003,STU-00108,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T08:55:00Z
+RSP-000355,SRV-003,STU-00053,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T20:32:00Z
+RSP-000356,SRV-003,STU-00053,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T17:49:00Z
+RSP-000357,SRV-003,STU-00053,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T20:43:00Z
+RSP-000358,SRV-003,STU-00087,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T17:44:00Z
+RSP-000359,SRV-003,STU-00087,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:40:00Z
+RSP-000360,SRV-003,STU-00087,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T17:47:00Z
+RSP-000361,SRV-003,STU-00124,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T12:11:00Z
+RSP-000362,SRV-003,STU-00124,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T15:20:00Z
+RSP-000363,SRV-003,STU-00124,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T13:36:00Z
+RSP-000364,SRV-003,STU-00055,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T13:34:00Z
+RSP-000365,SRV-003,STU-00039,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:41:00Z
+RSP-000366,SRV-003,STU-00039,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T10:37:00Z
+RSP-000367,SRV-003,STU-00039,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T13:59:00Z
+RSP-000368,SRV-003,STU-00031,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T11:02:00Z
+RSP-000369,SRV-003,STU-00031,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T14:14:00Z
+RSP-000370,SRV-003,STU-00126,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T18:46:00Z
+RSP-000371,SRV-003,STU-00126,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:52:00Z
+RSP-000372,SRV-003,STU-00126,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T18:48:00Z
+RSP-000373,SRV-003,STU-00041,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T14:24:00Z
+RSP-000374,SRV-003,STU-00041,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T16:01:00Z
+RSP-000375,SRV-003,STU-00079,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T13:06:00Z
+RSP-000376,SRV-003,STU-00079,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:41:00Z
+RSP-000377,SRV-003,STU-00079,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T08:17:00Z
+RSP-000378,SRV-003,STU-00038,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T19:54:00Z
+RSP-000379,SRV-003,STU-00038,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T10:54:00Z
+RSP-000380,SRV-003,STU-00100,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T20:04:00Z
+RSP-000381,SRV-003,STU-00100,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T16:42:00Z
+RSP-000382,SRV-003,STU-00080,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T19:23:00Z
+RSP-000383,SRV-003,STU-00080,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T16:26:00Z
+RSP-000384,SRV-003,STU-00080,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T12:57:00Z
+RSP-000385,SRV-003,STU-00072,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T16:20:00Z
+RSP-000386,SRV-003,STU-00072,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T08:24:00Z
+RSP-000387,SRV-003,STU-00118,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T20:08:00Z
+RSP-000388,SRV-003,STU-00118,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T08:50:00Z
+RSP-000389,SRV-003,STU-00118,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T16:58:00Z
+RSP-000390,SRV-003,STU-00043,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T18:33:00Z
+RSP-000391,SRV-003,STU-00043,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T16:20:00Z
+RSP-000392,SRV-003,STU-00043,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T18:25:00Z
+RSP-000393,SRV-003,STU-00111,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T19:19:00Z
+RSP-000394,SRV-003,STU-00111,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T17:27:00Z
+RSP-000395,SRV-003,STU-00111,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T12:42:00Z
+RSP-000396,SRV-003,STU-00134,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T10:45:00Z
+RSP-000397,SRV-003,STU-00134,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T10:04:00Z
+RSP-000398,SRV-003,STU-00134,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T12:44:00Z
+RSP-000399,SRV-003,STU-00103,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T16:13:00Z
+RSP-000400,SRV-003,STU-00103,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T12:46:00Z
+RSP-000401,SRV-003,STU-00037,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T17:49:00Z
+RSP-000402,SRV-003,STU-00037,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T09:30:00Z
+RSP-000403,SRV-003,STU-00037,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T10:52:00Z
+RSP-000404,SRV-003,STU-00097,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T17:38:00Z
+RSP-000405,SRV-003,STU-00097,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T17:44:00Z
+RSP-000406,SRV-003,STU-00097,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T16:44:00Z
+RSP-000407,SRV-003,STU-00056,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T08:03:00Z
+RSP-000408,SRV-003,STU-00056,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:26:00Z
+RSP-000409,SRV-003,STU-00032,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T19:00:00Z
+RSP-000410,SRV-003,STU-00032,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T19:10:00Z
+RSP-000411,SRV-003,STU-00107,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T16:25:00Z
+RSP-000412,SRV-003,STU-00107,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T08:20:00Z
+RSP-000413,SRV-003,STU-00107,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T20:11:00Z
+RSP-000414,SRV-003,STU-00083,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T11:35:00Z
+RSP-000415,SRV-003,STU-00083,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T16:44:00Z
+RSP-000416,SRV-003,STU-00034,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T10:42:00Z
+RSP-000417,SRV-003,STU-00034,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T08:28:00Z
+RSP-000418,SRV-003,STU-00034,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T10:52:00Z
+RSP-000419,SRV-003,STU-00088,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T11:54:00Z
+RSP-000420,SRV-003,STU-00088,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T16:39:00Z
+RSP-000421,SRV-003,STU-00088,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T11:52:00Z
+RSP-000422,SRV-003,STU-00115,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T16:21:00Z
+RSP-000423,SRV-003,STU-00115,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:25:00Z
+RSP-000424,SRV-003,STU-00115,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T14:35:00Z
+RSP-000425,SRV-003,STU-00040,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T08:04:00Z
+RSP-000426,SRV-003,STU-00040,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T11:57:00Z
+RSP-000427,SRV-003,STU-00040,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T10:06:00Z
+RSP-000428,SRV-003,STU-00033,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T19:14:00Z
+RSP-000429,SRV-003,STU-00033,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T15:47:00Z
+RSP-000430,SRV-003,STU-00033,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T16:30:00Z
+RSP-000431,SRV-003,STU-00133,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T14:57:00Z
+RSP-000432,SRV-003,STU-00133,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T09:41:00Z
+RSP-000433,SRV-003,STU-00131,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T17:10:00Z
+RSP-000434,SRV-003,STU-00131,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T16:06:00Z
+RSP-000435,SRV-003,STU-00016,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T11:49:00Z
+RSP-000436,SRV-003,STU-00081,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T09:29:00Z
+RSP-000437,SRV-003,STU-00081,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T13:37:00Z
+RSP-000438,SRV-003,STU-00081,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T18:15:00Z
+RSP-000439,SRV-003,STU-00109,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T13:42:00Z
+RSP-000440,SRV-003,STU-00109,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T19:52:00Z
+RSP-000441,SRV-003,STU-00109,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T14:23:00Z
+RSP-000442,SRV-003,STU-00116,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T16:24:00Z
+RSP-000443,SRV-003,STU-00116,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T17:53:00Z
+RSP-000444,SRV-003,STU-00075,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T12:39:00Z
+RSP-000445,SRV-003,STU-00075,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T13:20:00Z
+RSP-000446,SRV-003,STU-00075,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T18:27:00Z
+RSP-000447,SRV-003,STU-00066,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T20:28:00Z
+RSP-000448,SRV-003,STU-00066,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T17:55:00Z
+RSP-000449,SRV-003,STU-00066,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T12:40:00Z
+RSP-000450,SRV-003,STU-00054,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T14:27:00Z
+RSP-000451,SRV-003,STU-00054,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T09:48:00Z
+RSP-000452,SRV-003,STU-00054,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T14:31:00Z
+RSP-000453,SRV-003,STU-00120,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T12:43:00Z
+RSP-000454,SRV-003,STU-00094,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T16:22:00Z
+RSP-000455,SRV-003,STU-00094,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:17:00Z
+RSP-000456,SRV-003,STU-00017,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T20:32:00Z
+RSP-000457,SRV-003,STU-00017,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T14:29:00Z
+RSP-000458,SRV-003,STU-00017,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T16:40:00Z
+RSP-000459,SRV-003,STU-00128,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T19:37:00Z
+RSP-000460,SRV-003,STU-00128,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T14:18:00Z
+RSP-000461,SRV-003,STU-00128,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T08:16:00Z
+RSP-000462,SRV-003,STU-00085,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T20:38:00Z
+RSP-000463,SRV-003,STU-00085,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T08:20:00Z
+RSP-000464,SRV-003,STU-00071,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T08:10:00Z
+RSP-000465,SRV-003,STU-00071,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T08:25:00Z
+RSP-000466,SRV-003,STU-00071,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T17:57:00Z
+RSP-000467,SRV-003,STU-00019,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T12:34:00Z
+RSP-000468,SRV-003,STU-00019,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T16:06:00Z
+RSP-000469,SRV-003,STU-00102,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T16:56:00Z
+RSP-000470,SRV-003,STU-00102,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T18:51:00Z
+RSP-000471,SRV-003,STU-00123,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T16:15:00Z
+RSP-000472,SRV-003,STU-00123,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T12:53:00Z
+RSP-000473,SRV-003,STU-00123,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T16:22:00Z
+RSP-000474,SRV-003,STU-00077,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:09:00Z
+RSP-000475,SRV-003,STU-00077,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T20:23:00Z
+RSP-000476,SRV-003,STU-00077,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T08:13:00Z
+RSP-000477,SRV-003,STU-00095,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T20:43:00Z
+RSP-000478,SRV-003,STU-00095,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T20:38:00Z
+RSP-000479,SRV-003,STU-00127,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T08:58:00Z
+RSP-000480,SRV-003,STU-00127,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:18:00Z
+RSP-000481,SRV-003,STU-00106,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T11:52:00Z
+RSP-000482,SRV-003,STU-00106,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T14:28:00Z
+RSP-000483,SRV-003,STU-00106,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T20:30:00Z
+RSP-000484,SRV-003,STU-00135,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T18:07:00Z
+RSP-000485,SRV-003,STU-00135,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T14:56:00Z
+RSP-000486,SRV-003,STU-00135,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T08:07:00Z
+RSP-000487,SRV-003,STU-00044,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T14:23:00Z
+RSP-000488,SRV-003,STU-00044,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T08:14:00Z
+RSP-000489,SRV-003,STU-00044,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T12:16:00Z
+RSP-000490,SRV-003,STU-00074,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T14:30:00Z
+RSP-000491,SRV-003,STU-00074,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T14:35:00Z
+RSP-000492,SRV-003,STU-00036,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T13:10:00Z
+RSP-000493,SRV-003,STU-00036,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T14:09:00Z
+RSP-000494,SRV-003,STU-00036,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T09:20:00Z
+RSP-000495,SRV-003,STU-00091,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T17:27:00Z
+RSP-000496,SRV-003,STU-00091,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T13:59:00Z
+RSP-000497,SRV-003,STU-00091,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T10:54:00Z
+RSP-000498,SRV-003,STU-00096,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T08:21:00Z
+RSP-000499,SRV-003,STU-00096,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T15:50:00Z
+RSP-000500,SRV-003,STU-00052,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T14:19:00Z
+RSP-000501,SRV-003,STU-00052,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T13:38:00Z
+RSP-000502,SRV-003,STU-00052,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T13:10:00Z
+RSP-000503,SRV-003,STU-00004,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T16:14:00Z
+RSP-000504,SRV-003,STU-00004,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T09:08:00Z
+RSP-000505,SRV-003,STU-00058,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T11:06:00Z
+RSP-000506,SRV-003,STU-00058,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T08:00:00Z
+RSP-000507,SRV-003,STU-00022,PF1,My child looks forward to tutoring.,4,likert_5,2025-11-10T10:42:00Z
+RSP-000508,SRV-003,STU-00022,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T09:59:00Z
+RSP-000509,SRV-003,STU-00022,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T11:59:00Z
+RSP-000510,SRV-003,STU-00069,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T18:29:00Z
+RSP-000511,SRV-003,STU-00069,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T20:17:00Z
+RSP-000512,SRV-003,STU-00069,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T19:15:00Z
+RSP-000513,SRV-003,STU-00063,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T13:45:00Z
+RSP-000514,SRV-003,STU-00063,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T10:11:00Z
+RSP-000515,SRV-003,STU-00063,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T10:43:00Z
+RSP-000516,SRV-003,STU-00009,PF1,My child looks forward to tutoring.,2,likert_5,2025-11-10T19:54:00Z
+RSP-000517,SRV-003,STU-00009,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T09:32:00Z
+RSP-000518,SRV-003,STU-00009,PF3,Overall satisfaction with the program.,3,likert_5,2025-11-10T17:05:00Z
+RSP-000519,SRV-003,STU-00092,PF1,My child looks forward to tutoring.,1,likert_5,2025-11-10T13:58:00Z
+RSP-000520,SRV-003,STU-00092,PF3,Overall satisfaction with the program.,1,likert_5,2025-11-10T13:19:00Z
+RSP-000521,SRV-003,STU-00014,PF1,My child looks forward to tutoring.,3,likert_5,2025-11-10T15:29:00Z
+RSP-000522,SRV-003,STU-00014,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T11:48:00Z
+RSP-000523,SRV-003,STU-00014,PF3,Overall satisfaction with the program.,2,likert_5,2025-11-10T13:49:00Z
+RSP-000524,SRV-003,STU-00078,PF2,I have seen improvement in my child's skills.,no,binary,2025-11-10T09:53:00Z
+RSP-000525,SRV-003,STU-00078,PF3,Overall satisfaction with the program.,4,likert_5,2025-11-10T09:22:00Z
+RSP-000526,SRV-003,STU-00065,PF1,My child looks forward to tutoring.,5,likert_5,2025-11-10T15:12:00Z
+RSP-000527,SRV-003,STU-00065,PF2,I have seen improvement in my child's skills.,yes,binary,2025-11-10T08:21:00Z
+RSP-000528,SRV-003,STU-00065,PF3,Overall satisfaction with the program.,5,likert_5,2025-11-10T16:01:00Z

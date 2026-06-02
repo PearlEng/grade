@@ -1,0 +1,2 @@
+program_id,program_name,program_type,start_date,end_date,target_grade_levels,subject_areas,district_id,school_count,dosage_target_minutes_per_week,reporting_period_start,reporting_period_end
+PROG-001,Pearl Academic Support Initiative,tutoring,2025-09-01,,"3,4,5,6,7,8","math,reading",DIST-001,3,135,2025-09-01,2025-11-30

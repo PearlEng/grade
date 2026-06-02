@@ -259,6 +259,68 @@ One row per (program × school × survey_type × month).
 | `response_rate` | float | nullable, [0, 1] | Response rate for this month; null if not applicable. |
 | `mom_score_delta` | float | nullable | Month-over-month change in avg_score; null for the first month. |
 
+### 2.3 `ground_truth.json`
+
+One JSON file per Outcomes pack. Contains **realized signal values** computed from the
+generated data — not the spec.py input constants — so B-task authors can assert exact numbers.
+
+```json
+{
+  "pack_id": "pack_outcomes",
+  "seed": "<integer>",
+  "note": "<string>",
+  "monthly_attendance_rate": {
+    "2025-09": "<float>",
+    "2025-10": "<float>",
+    "2025-11": "<float>"
+  },
+  "program_wide_attendance_rate": "<float>",
+  "monthly_satisfaction": {
+    "<survey_type>": {
+      "2025-09": "<float>",
+      "2025-10": "<float>",
+      "2025-11": "<float>"
+    }
+  },
+  "satisfaction_dip_realized": {
+    "dip_month": "2025-10",
+    "scores_by_month": {
+      "2025-09": "<float>",
+      "2025-10": "<float>",
+      "2025-11": "<float>"
+    },
+    "dip_confirmed": "<boolean>"
+  },
+  "monthly_cancellation_rate": {
+    "2025-09": "<float>",
+    "2025-10": "<float>",
+    "2025-11": "<float>"
+  },
+  "iep_attendance_rate": "<float>",
+  "non_iep_attendance_rate": "<float>",
+  "iep_attendance_gap_pp": "<float>",
+  "suppressed_low_n_subgroups": [
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "<string>",
+      "n": "<integer>"
+    }
+  ]
+}
+```
+
+**Field notes:**
+- `monthly_attendance_rate` — program-wide average attendance rate per month (mean across schools).
+- `program_wide_attendance_rate` — overall rate across all months and schools.
+- `monthly_satisfaction` — per-survey-type per-month realized avg_score from ``monthly_satisfaction_summary.csv``.
+- `satisfaction_dip_realized.dip_confirmed` — boolean; true if the October score is lower than both September and November scores for ``student_satisfaction``.
+- `monthly_cancellation_rate` — fraction of scheduled sessions cancelled or no-show each month.
+- `iep_attendance_gap_pp` — realized gap in percentage points: non-IEP rate minus IEP rate.
+- `suppressed_low_n_subgroups` — race/ethnicity subgroups with n < suppression threshold.
+
+**Important:** B-task authors MUST use ``ground_truth.json`` values for assertions, not ``spec.py``
+constants.  The generator applies noise so realized values differ from input targets.
+
 ---
 
 ## 3. Equity & Research Pack (`fixtures/pack_equity_research/`)

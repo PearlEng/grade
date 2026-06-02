@@ -1,0 +1,67 @@
+{
+  "pack_id": "pack_outcomes",
+  "seed": 42,
+  "note": "All values computed from the generated data — not from spec.py input constants. B-task authors should assert these realized numbers, not the spec targets.",
+  "monthly_attendance_rate": {
+    "2025-09": 0.7871,
+    "2025-10": 0.8199,
+    "2025-11": 0.8209
+  },
+  "program_wide_attendance_rate": 0.8092,
+  "monthly_satisfaction": {
+    "parent_feedback": {
+      "2025-09": 3.8765,
+      "2025-10": 3.4486,
+      "2025-11": 3.8731
+    },
+    "student_satisfaction": {
+      "2025-09": 3.8798,
+      "2025-10": 3.3827,
+      "2025-11": 3.8689
+    },
+    "tutor_self_eval": {
+      "2025-09": 3.8157,
+      "2025-10": 3.3202,
+      "2025-11": 3.7065
+    }
+  },
+  "satisfaction_dip_realized": {
+    "dip_month": "2025-10",
+    "scores_by_month": {
+      "2025-09": 3.8798,
+      "2025-10": 3.3827,
+      "2025-11": 3.8689
+    },
+    "dip_confirmed": true
+  },
+  "monthly_cancellation_rate": {
+    "2025-09": 0.1064,
+    "2025-10": 0.2789,
+    "2025-11": 0.0952
+  },
+  "iep_attendance_rate": 0.6839,
+  "non_iep_attendance_rate": 0.8243,
+  "iep_attendance_gap_pp": 14.04,
+  "suppressed_low_n_subgroups": [
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "AIAN",
+      "n": 4
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "NHPI",
+      "n": 4
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "TwoOrMore",
+      "n": 7
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "Unknown",
+      "n": 1
+    }
+  ]
+}
