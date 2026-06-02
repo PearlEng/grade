@@ -208,6 +208,50 @@ tabular rows.
   so that gold tasks can require the model to acknowledge them.
 - `seed` is the integer random seed used to generate this pack instance; enables reproducibility.
 
+### 1.11 `ground_truth.json` (Operations pack)
+
+One JSON file per Operations pack. Contains **realized signal values** computed from the
+generated data so that B-task authors can assert exact numbers.
+
+```json
+{
+  "pack_id": "pack_operations",
+  "seed": "<integer>",
+  "note": "<string>",
+  "monthly_attendance_rate": {
+    "2025-09": "<float>",
+    "2025-10": "<float>",
+    "2025-11": "<float>"
+  },
+  "program_wide_attendance_rate": "<float>",
+  "monthly_cancellation_rate": {
+    "2025-09": "<float>",
+    "2025-10": "<float>",
+    "2025-11": "<float>"
+  },
+  "iep_attendance_rate": "<float>",
+  "non_iep_attendance_rate": "<float>",
+  "iep_attendance_gap_pp": "<float>",
+  "suppressed_low_n_subgroups": [
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "<string>",
+      "n": "<integer>"
+    }
+  ]
+}
+```
+
+**Field notes:**
+- `monthly_attendance_rate` — per-month realized attendance rate, computed directly from
+  raw ``attendance.csv`` records (not from spec constants).
+- `monthly_cancellation_rate` — fraction of scheduled sessions cancelled or no-show per month.
+- `iep_attendance_gap_pp` — realized gap in percentage points: non-IEP rate minus IEP rate.
+- `suppressed_low_n_subgroups` — race/ethnicity subgroups with n < suppression threshold.
+
+**Important:** B-task authors MUST use ``ground_truth.json`` values for assertions, not
+``spec.py`` constants or dataset-card prose.
+
 ---
 
 ## 2. Outcomes Pack (`fixtures/pack_outcomes/`)
@@ -409,6 +453,55 @@ tasks may ask the model to reason about in relation to the fixture data.
 **Generator note (A3):** At least two research references must be included per pack; at least
 one must have a non-null `contradicts_claim` to enable Track 5 research-reasoning tasks that
 require the model to navigate mixed evidence.
+
+### 3.4 `ground_truth.json` (Equity & Research pack)
+
+One JSON file per Equity & Research pack. Contains **realized signal values** computed from
+the generated data so that B-task authors can assert exact numbers.
+
+```json
+{
+  "pack_id": "pack_equity_research",
+  "seed": "<integer>",
+  "note": "<string>",
+  "monthly_attendance_rate": {
+    "2025-09": "<float>",
+    "2025-10": "<float>",
+    "2025-11": "<float>"
+  },
+  "program_wide_attendance_rate": "<float>",
+  "iep_attendance_rate": "<float>",
+  "non_iep_attendance_rate": "<float>",
+  "iep_attendance_gap_pp": "<float>",
+  "suppressed_low_n_subgroups": [
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "<string>",
+      "n": "<integer>"
+    }
+  ],
+  "iep_proficiency_gap_pp_spring": "<float>",
+  "subgroup_outcome_disparities": [
+    {
+      "assessment_period": "<string>",
+      "subgroup_dimension": "<string>",
+      "subgroup_value": "<string>",
+      "n_students": "<integer>",
+      "benchmark_proficiency_rate": "<float | null>"
+    }
+  ]
+}
+```
+
+**Field notes:**
+- `iep_attendance_gap_pp` — realized attendance gap: non-IEP rate minus IEP rate (pp).
+- `iep_proficiency_gap_pp_spring` — realized proficiency rate gap (spring_2026):
+  non-IEP benchmark_proficiency_rate minus IEP rate, in percentage points.
+- `subgroup_outcome_disparities` — IEP subgroup rows from ``subgroup_outcomes_summary.csv``
+  for ``spring_2026`` (non-suppressed only), for asserting outcome parity tasks.
+
+**Important:** B-task authors MUST use ``ground_truth.json`` values for assertions, not
+``spec.py`` constants.
 
 ---
 

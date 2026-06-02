@@ -2,12 +2,17 @@
   "pack_id": "pack_operations",
   "grade_version": "0.1.0.dev0",
   "seed": 42,
-  "generated_at_utc": "2026-06-02T17:03:12Z",
+  "generated_at_utc": "2026-06-02T17:30:17Z",
   "files": [
     {
       "filename": "attendance.csv",
       "sha256": "e0233cdcdd0faee000c8df5c6f892fdc9a70301d762e5c3f53e47a5e965d9d2e",
       "row_count": 4156
+    },
+    {
+      "filename": "ground_truth.json",
+      "sha256": "d07da72df8153680120905b45af500e8b0a559f04d3c159aaa780decaa251ccf",
+      "row_count": null
     },
     {
       "filename": "groups.csv",

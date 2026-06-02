@@ -1,0 +1,53 @@
+{
+  "pack_id": "pack_equity_research",
+  "seed": 42,
+  "note": "All values computed from the generated data — not from spec.py input constants. B-task authors should assert these realized numbers, not the spec targets.",
+  "monthly_attendance_rate": {
+    "2025-09": 0.7879,
+    "2025-10": 0.8236,
+    "2025-11": 0.8196
+  },
+  "program_wide_attendance_rate": 0.8092,
+  "iep_attendance_rate": 0.6839,
+  "non_iep_attendance_rate": 0.8243,
+  "iep_attendance_gap_pp": 14.04,
+  "suppressed_low_n_subgroups": [
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "AIAN",
+      "n": 4
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "NHPI",
+      "n": 4
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "TwoOrMore",
+      "n": 7
+    },
+    {
+      "subgroup_dimension": "race_ethnicity",
+      "subgroup_value": "Unknown",
+      "n": 1
+    }
+  ],
+  "iep_proficiency_gap_pp_spring": 22.48,
+  "subgroup_outcome_disparities": [
+    {
+      "assessment_period": "spring_2026",
+      "subgroup_dimension": "iep",
+      "subgroup_value": "false",
+      "n_students": 120,
+      "benchmark_proficiency_rate": 0.6177
+    },
+    {
+      "assessment_period": "spring_2026",
+      "subgroup_dimension": "iep",
+      "subgroup_value": "true",
+      "n_students": 15,
+      "benchmark_proficiency_rate": 0.3929
+    }
+  ]
+}

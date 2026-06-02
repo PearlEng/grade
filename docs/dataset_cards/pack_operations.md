@@ -19,7 +19,7 @@ The framing is deliberately grounded in the realities of how tutoring programs a
 - **Messy attendance.** Eight percent of attendance records record partial minutes rather than a simple present/absent flag, as occurs when a student leaves early or arrives late.
 - **School diversity.** Three schools with different locales (urban, suburban, rural), two Title I and one non-Title I, and different enrollment sizes (420, 310, 185) provide a realistic distribution for school-level comparisons.
 
-The October dip in session completions (elevated cancellation rate ~18% vs. the normal ~8–12%) reflects scheduling pressures common in the fall semester and is intentionally embedded as a detectable signal for benchmark tasks.
+The October dip in session completions (realized cancellation rate 27.9% vs. September 10.6% and November 9.5%) reflects scheduling pressures common in the fall semester and is intentionally embedded as a detectable signal for benchmark tasks. See `fixtures/pack_operations/ground_truth.json` for the authoritative per-month cancellation and attendance rates.
 
 ---
 
@@ -39,6 +39,7 @@ All files live in `fixtures/pack_operations/`. Row counts are for data rows (hea
 | `surveys.csv` | CSV | 3 | One row per survey instrument (student satisfaction, tutor self-eval, parent feedback). |
 | `survey_responses.csv` | CSV | 528 | Per-respondent per-question response rows; sparse by design. |
 | `program_context.json` | JSON | — | Narrative context, stated goals, data gaps, implementation challenges. |
+| `ground_truth.json` | JSON | — | Realized signal values (attendance rates, cancellation rates, IEP gap) computed from the generated data. **B-task authors: assert against these numbers, not spec constants.** |
 | `manifest.json` | JSON | — | SHA-256 hashes and row counts for all files in the pack. |
 
 ---
@@ -75,13 +76,17 @@ About 6% of students in `students.csv` have an empty `tutoring_group_id`. These 
 `attendance.csv` contains one row per student per *completed* session only. Cancelled or no-show sessions do not generate attendance rows. The `sessions.csv` table contains all scheduled session slots regardless of status.
 
 ### October cancellation signal
-Sessions in October (month index 1) have an elevated cancellation rate (~18% vs. the normal ~8–12%). This is intentionally embedded as a detectable operational signal. The `sessions.csv` `status` column carries `cancelled_tutor`, `cancelled_student`, `cancelled_school`, and `no_show` values for non-completed sessions.
+Sessions in October (month index 1) have an elevated cancellation rate. The realized rate for seed 42 is **27.9%** in October, compared to **10.6%** in September and **9.5%** in November. This is intentionally embedded as a detectable operational signal. The `sessions.csv` `status` column carries `cancelled_tutor`, `cancelled_student`, `cancelled_school`, and `no_show` values for non-completed sessions.
+
+**B-task authors:** use `fixtures/pack_operations/ground_truth.json → monthly_cancellation_rate` for exact assertions, not the dataset card prose or spec constants. The realized value reflects stochastic draw noise and is meaningfully higher than the 18% spec target.
 
 ### Race/ethnicity subgroup: AIAN low-N
 The AIAN (American Indian/Alaska Native) race-ethnicity subgroup contains exactly 4 students program-wide — intentionally below the n < 10 suppression threshold. This subgroup appears in `students.csv` with normal rows but any aggregated metrics computed from this subgroup should be suppressed. (Formal suppression flags are only present in the Equity & Research pack's `subgroup_attendance_summary.csv`; Operations pack users must apply the threshold themselves.)
 
 ### IEP attendance disparity
-Students with an active IEP (`iep = true`, approximately 12% of students) attend at roughly 11 percentage points below non-IEP peers. This disparity is embedded via the generator's `IEP_ATTENDANCE_PENALTY` constant and is a detectable signal in `attendance.csv`.
+Students with an active IEP (`iep = true`, approximately 12% of students) attend at a lower rate than non-IEP peers. The realized gap for seed 42 is **14.04 percentage points** (IEP rate: 68.4%, non-IEP rate: 82.4%). This disparity is embedded via the generator's `IEP_ATTENDANCE_PENALTY` constant and is a detectable signal in `attendance.csv`.
+
+**B-task authors:** use `fixtures/pack_operations/ground_truth.json → iep_attendance_gap_pp` for exact assertions. The realized gap exceeds the 11 pp spec target due to stochastic noise.
 
 ### Survey response timing
 All three surveys were administered in November 2025 (the final five weeks of the reporting period). Survey responses therefore reflect end-of-quarter sentiment and do not capture within-quarter trends. The parent feedback survey was administered earliest (2025-11-10) and had lower-than-target response rates due to translation delays for non-English-speaking households.
