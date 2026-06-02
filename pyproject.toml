@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grade"
+version = "0.1.0.dev0"
+description = "GRADE — Grounded Reasoning & Analysis for Data in Education public benchmark"
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+openrouter = []
+anthropic = []
+dev = [
+    "pre-commit>=3.7",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pytest>=8.2",
+]
+
+# ---------------------------------------------------------------------------
+# Setuptools — explicit package discovery (flat layout: ship code, not
+# tests/fixtures/docs/examples)
+# ---------------------------------------------------------------------------
+[tool.setuptools.packages.find]
+include = ["benchmark*", "runner*"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "D",   # pydocstyle (Google-style)
+]
+ignore = [
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D107",  # Missing docstring in __init__
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["benchmark", "runner"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+exclude = ["docs/", "examples/"]
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q"
