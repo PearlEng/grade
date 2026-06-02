@@ -1,9 +1,3 @@
-+++
-version = "2.1"
-aliases = ["/version/2/1"]
-reportingPlaceholder = "by opening a private security advisory at https://github.com/PearlEng/grade/security/advisories/new or contacting the maintainers listed in CODEOWNERS."
-+++
-
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
@@ -42,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at by opening a private security advisory at https://github.com/PearlEng/grade/security/advisories/new or contacting the maintainers listed in CODEOWNERS.. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement by opening a private security advisory at https://github.com/PearlEng/grade/security/advisories/new or contacting the maintainers listed in CODEOWNERS. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 
