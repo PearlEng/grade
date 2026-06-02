@@ -1,4 +1,4 @@
-"""GRADE generic benchmark runner CLI (C5).
+"""GRADE generic benchmark runner CLI (C5 + C6).
 
 Entry point::
 
@@ -15,21 +15,20 @@ The CLI:
 
 Adapter registry
 ----------------
-Currently registered adapters:
+Registered adapters:
 
+- ``openrouter`` *(default)* — :class:`~runner.adapters.openrouter_adapter.OpenRouterAdapter`
+  (requires ``OPENROUTER_API_KEY``).
 - ``stub`` — :class:`~runner.adapters.stub_adapter.StubAdapter` (network-free,
   for tests and smoke runs).
-
-C6/C7/C8 will register additional adapters (openrouter, anthropic, …) once
-implemented.
 
 Usage examples::
 
     # Smoke test — no network or API key required:
     python -m runner.cli --pack operations --adapter stub --runs 1 --out /tmp/grade_out
 
-    # With a real adapter (C6+):
-    python -m runner.cli --pack outcomes --adapter openrouter --runs 5 --out /tmp/grade_out
+    # With the OpenRouter adapter:
+    python -m runner.cli --pack outcomes --adapter openrouter --model anthropic/claude-sonnet-4-5 --runs 5 --out /tmp/grade_out
 """
 
 from __future__ import annotations
@@ -40,6 +39,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from runner.adapters.base import Adapter
+from runner.adapters.openrouter_adapter import OpenRouterAdapter
 from runner.adapters.stub_adapter import StubAdapter
 from runner.aggregator import aggregate
 from runner.dispatcher import TaskRunResult, load_pack, run_task
@@ -50,9 +50,15 @@ from runner.io import write_raw_outputs, write_result
 # ---------------------------------------------------------------------------
 
 #: Map from CLI ``--adapter`` name to a zero-argument factory callable.
-_ADAPTER_REGISTRY: dict[str, Callable[[], Adapter]] = {
+#: C6 adds OpenRouterAdapter as the default; factory accepts an optional
+#: model kwarg which is threaded through from ``--model``.
+_ADAPTER_REGISTRY: dict[str, type] = {
+    "openrouter": OpenRouterAdapter,
     "stub": StubAdapter,
 }
+
+#: Default adapter name when ``--adapter`` is not specified.
+_DEFAULT_ADAPTER: str = "openrouter"
 
 #: Known pack name → relative path within the repo.
 _PACK_PATHS: dict[str, Path] = {
@@ -101,11 +107,15 @@ def _resolve_pack_path(pack_arg: str, repo_root: Path) -> tuple[Path, str | None
     return resolved.resolve(), pack_id
 
 
-def _build_adapter(adapter_name: str) -> Adapter:
+def _build_adapter(adapter_name: str, model: str | None = None) -> Adapter:
     """Instantiate an adapter from the registry by name.
 
     Args:
         adapter_name: Value of the ``--adapter`` CLI argument.
+        model: Optional model slug/shorthand passed via ``--model``.  If
+            provided and the adapter constructor accepts a ``model`` keyword
+            argument, it is forwarded.  Ignored by adapters that don't accept
+            it (e.g. ``StubAdapter``).
 
     Returns:
         An instantiated :class:`~runner.adapters.base.Adapter`.
@@ -117,7 +127,12 @@ def _build_adapter(adapter_name: str) -> Adapter:
         known = ", ".join(sorted(_ADAPTER_REGISTRY))
         raise KeyError(f"Unknown adapter '{adapter_name}'.  Known adapters: {known}")
     factory = _ADAPTER_REGISTRY[adapter_name]
-    return factory()
+    if model is not None:
+        try:
+            return factory(model=model)  # type: ignore[call-arg]
+        except TypeError:
+            pass  # adapter doesn't accept model kwarg — fall through
+    return factory()  # type: ignore[call-arg]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -145,10 +160,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--adapter",
-        required=True,
+        default=_DEFAULT_ADAPTER,
         metavar="ADAPTER_ID",
         help=(
-            "Model adapter to use.  Currently: stub.  C6+ will add openrouter and other providers."
+            f"Model adapter to use.  Default: {_DEFAULT_ADAPTER!r}.  "
+            f"Available: {', '.join(sorted(_ADAPTER_REGISTRY))}."
+        ),
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        metavar="MODEL",
+        help=(
+            "Model slug or shorthand forwarded to the adapter "
+            "(e.g. 'anthropic/claude-sonnet-4-5', 'claude-sonnet-4-6').  "
+            "Required for the openrouter adapter; ignored by the stub."
         ),
     )
     parser.add_argument(
@@ -221,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- Build adapter ---
     try:
-        adapter = _build_adapter(args.adapter)
+        adapter = _build_adapter(args.adapter, model=args.model)
     except KeyError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

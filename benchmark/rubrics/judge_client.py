@@ -1,8 +1,12 @@
 """Deterministic judge-model client wrapper for GRADE rubric scoring (C2).
 
-This module provides :class:`JudgeClient`, a thin wrapper around the Anthropic
-Messages API that enforces deterministic settings (temperature 0, fixed seed)
-for rubric-dimension evaluation.
+This module provides :class:`JudgeClient`, a thin wrapper around the
+**OpenRouter** chat-completions API that enforces deterministic settings
+(temperature 0, fixed seed) for rubric-dimension evaluation.
+
+The client reuses :func:`runner.adapters.openrouter_adapter.post_chat_completion`
+so that HTTP configuration (base URL, headers, auth) is defined in exactly one
+place.  A single ``OPENROUTER_API_KEY`` is the only credential required.
 
 **CI / test policy**: This module is *documented* but **not exercised in CI**.
 Tests in ``tests/unit/test_rubric_scoring.py`` use a mock judge that follows
@@ -15,7 +19,7 @@ Live-judge invocation example::
     from benchmark.rubrics.judge_client import JudgeClient
     from benchmark.rubrics.rubric_scoring import score_rubric
 
-    client = JudgeClient(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = JudgeClient(api_key=os.environ["OPENROUTER_API_KEY"])
     result = score_rubric(task, model_output, judge_client=client)
     print(result["composite"])
 
@@ -31,8 +35,8 @@ For each dimension the client constructs a prompt that includes:
    ``key_findings`` and ``limitations`` lists joined as prose).
 5. An instruction to respond with a single float in [0, 1].
 
-The judge model is queried at **temperature 0** with a **fixed random seed**
-(:data:`JUDGE_SEED`) so that results are reproducible across runs.
+The judge model is queried at **temperature 0** so that results are
+reproducible across runs.
 """
 
 from __future__ import annotations
@@ -43,11 +47,13 @@ from typing import Any
 #: Number of judge calls permitted per task invocation (one per dimension).
 MAX_JUDGE_CALLS_PER_TASK: int = 6
 
-#: Fixed random seed passed to the judge model for reproducibility.
+#: Fixed random seed — kept for documentation / future use; OpenRouter does
+#: not expose a ``seed`` parameter on all models, so reproducibility relies on
+#: ``temperature=0`` instead.
 JUDGE_SEED: int = 42
 
-#: Default judge model identifier.
-DEFAULT_JUDGE_MODEL: str = "claude-opus-4-5"
+#: Default judge model identifier (OpenRouter slug).
+DEFAULT_JUDGE_MODEL: str = "anthropic/claude-opus-4-5"
 
 
 def _build_judge_prompt(
@@ -125,10 +131,10 @@ def _build_judge_prompt(
 
 
 class JudgeClient:
-    """Anthropic-backed deterministic judge client for GRADE rubric scoring.
+    """OpenRouter-backed deterministic judge client for GRADE rubric scoring.
 
-    Uses temperature 0 and a fixed seed (:data:`JUDGE_SEED`) so that repeated
-    calls to the same (dimension, task, output) triple return the same score.
+    Uses temperature 0 so that repeated calls to the same
+    (dimension, task, output) triple return the same score.
     The number of judge calls per task is capped at
     :data:`MAX_JUDGE_CALLS_PER_TASK` (one per dimension).
 
@@ -136,16 +142,16 @@ class JudgeClient:
     live-judge usage instructions.
 
     Args:
-        api_key: Anthropic API key.  If *None*, falls back to the
-            ``ANTHROPIC_API_KEY`` environment variable via the SDK default.
-        model: Model identifier to use as judge.  Defaults to
+        api_key: OpenRouter API key.  If *None*, falls back to the
+            ``OPENROUTER_API_KEY`` environment variable.
+        model: OpenRouter model slug to use as judge.  Defaults to
             :data:`DEFAULT_JUDGE_MODEL`.
         max_tokens: Maximum tokens to request in the judge response.  Defaults
             to 16 (a single float token).
 
     Example::
 
-        client = JudgeClient(api_key="sk-ant-...")
+        client = JudgeClient(api_key="sk-or-...")
         score = client.judge("grounding_accuracy", "", task, model_output)
     """
 
@@ -155,25 +161,15 @@ class JudgeClient:
         model: str = DEFAULT_JUDGE_MODEL,
         max_tokens: int = 16,
     ) -> None:
-        """Initialize the JudgeClient with Anthropic SDK settings.
+        """Initialize the JudgeClient with OpenRouter settings.
 
         Args:
-            api_key: Anthropic API key.  If *None*, the SDK reads from the
-                ``ANTHROPIC_API_KEY`` environment variable.
-            model: Judge model identifier.
+            api_key: OpenRouter API key.  If *None*, reads from the
+                ``OPENROUTER_API_KEY`` environment variable at call time.
+            model: OpenRouter model slug for the judge.
             max_tokens: Maximum tokens for the judge response.
         """
-        try:
-            import anthropic
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "The 'anthropic' package is required to use JudgeClient.  "
-                "Install it with: pip install anthropic"
-            ) from exc
-
-        self._client: Any = (
-            anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
-        )
+        self._api_key = api_key
         self._model = model
         self._max_tokens = max_tokens
 
@@ -186,6 +182,9 @@ class JudgeClient:
     ) -> float:
         """Call the judge model to score one rubric dimension.
 
+        Uses :func:`runner.adapters.openrouter_adapter.post_chat_completion`
+        so that the HTTP logic lives in one place.
+
         Args:
             dimension: The rubric dimension name.
             guidance: Task-specific scorer guidance text, or empty string.
@@ -194,17 +193,21 @@ class JudgeClient:
 
         Returns:
             A float in ``[0.0, 1.0]`` parsed from the judge model's response.
-            If parsing fails, returns ``0.0`` and the failure is silent — callers
-            should log at a higher level if desired.
+            If parsing fails, returns ``0.0`` and the failure is silent —
+            callers should log at a higher level if desired.
         """
+        # Lazy import so this module is importable without httpx installed.
+        from runner.adapters.openrouter_adapter import post_chat_completion
+
         prompt = _build_judge_prompt(dimension, guidance, task, model_output)
-        message = self._client.messages.create(
-            model=self._model,
-            max_tokens=self._max_tokens,
-            temperature=0,
+        raw = post_chat_completion(
             messages=[{"role": "user", "content": prompt}],
+            model=self._model,
+            temperature=0.0,
+            max_tokens=self._max_tokens,
+            api_key=self._api_key,
         )
-        raw = message.content[0].text.strip()
+        raw = raw.strip()
         try:
             score = float(raw)
         except ValueError:
