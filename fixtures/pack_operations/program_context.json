@@ -1,0 +1,32 @@
+{
+  "program_id": "PROG-001",
+  "narrative_description": "Pearl Academic Support Initiative is a high-dosage tutoring program serving 135 students across 3 schools in the district.  The program targets grades 3–8 in math and reading, with small-group sessions (3–5 students) delivered at 135 minutes per student per week.  The program launched in September 2025 and this pack covers the first reporting quarter (September–November 2025).",
+  "stated_goals": [
+    "Improve math and reading proficiency for students in grades 3–8.",
+    "Achieve ≥80% attendance rate across all schools by the end of the quarter.",
+    "Reduce the IEP attendance gap to ≤5 percentage points.",
+    "Achieve a student satisfaction mean score of ≥4.0 by end of quarter."
+  ],
+  "primary_contact": {
+    "name": "Alex Rivera",
+    "role": "Program Director"
+  },
+  "data_collection_notes": "Attendance is recorded by tutors within 30 minutes of each session. Survey data was collected in the final two weeks of the reporting period. Parent survey response rate is lower than targets due to translation delays for non-English-speaking households.",
+  "known_data_gaps": [
+    "AIAN subgroup has n < 10 students program-wide; all AIAN metrics are suppressed.",
+    "Parent feedback survey administered late in the period; full response data may not reflect early-quarter satisfaction.",
+    "6% of students not yet assigned to a tutoring group at time of snapshot.",
+    "Tutor self-evaluation survey has partial coverage; 22% of tutors have no session rating data."
+  ],
+  "implementation_challenges": [
+    "October session cancellation rate was elevated (18%) due to schedule conflicts.",
+    "Student satisfaction dipped in October, correlating with the cancellation spike.",
+    "IEP students are attending ~11 percentage points below non-IEP peers."
+  ],
+  "reporting_period": {
+    "start": "2025-09-01",
+    "end": "2025-11-30",
+    "label": "Q1 FY2025-26 (September–November 2025)"
+  },
+  "seed": 42
+}

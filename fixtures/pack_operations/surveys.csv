@@ -1,0 +1,4 @@
+survey_id,program_id,survey_name,survey_type,administered_date,total_invited,total_responded,response_rate
+SRV-001,PROG-001,Student Satisfaction Survey,student_satisfaction,2025-11-15,135,76,0.563
+SRV-002,PROG-001,Tutor Self-Evaluation,tutor_self_eval,2025-11-20,9,7,0.7778
+SRV-003,PROG-001,Parent Feedback Survey,parent_feedback,2025-11-10,135,106,0.7852
