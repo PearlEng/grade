@@ -14,7 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openrouter = []
+openrouter = [
+    "httpx>=0.27",
+]
 anthropic = []
 dev = [
     "pre-commit>=3.7",
@@ -81,10 +83,10 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 exclude = ["docs/", "examples/"]
 
-# Optional model-provider SDKs are not installed in the lint/test CI env
-# (they live in extras); treat their missing stubs as untyped rather than errors.
+# Optional HTTP / model-provider libs are not installed in the lint/test CI
+# env (they live in extras); treat missing stubs as untyped rather than errors.
 [[tool.mypy.overrides]]
-module = ["anthropic.*"]
+module = ["httpx.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
