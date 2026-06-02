@@ -1,0 +1,73 @@
+summary_id,program_id,school_id,month_label,subgroup_dimension,subgroup_value,n_students,n_sessions_attended,attendance_rate,avg_dosage_minutes,suppressed,suppression_reason
+SAS-00001,PROG-001,,2025-09,ell,false,111,1044,0.7856,418.13,false,
+SAS-00002,PROG-001,,2025-10,ell,false,111,886,0.8136,353.2,false,
+SAS-00003,PROG-001,,2025-11,ell,false,111,996,0.8225,398.12,false,
+SAS-00004,PROG-001,,2025-09,ell,true,16,156,0.8041,434.75,false,
+SAS-00005,PROG-001,,2025-10,ell,true,16,141,0.8924,392.19,false,
+SAS-00006,PROG-001,,2025-11,ell,true,16,140,0.8,388.81,false,
+SAS-00007,PROG-001,,2025-09,free_reduced_lunch,false,58,547,0.7803,419.83,false,
+SAS-00008,PROG-001,,2025-10,free_reduced_lunch,false,58,476,0.8425,363.52,false,
+SAS-00009,PROG-001,,2025-11,free_reduced_lunch,false,58,507,0.8035,388.69,false,
+SAS-00010,PROG-001,,2025-09,free_reduced_lunch,true,69,653,0.7944,420.55,false,
+SAS-00011,PROG-001,,2025-10,free_reduced_lunch,true,69,551,0.8079,353.57,false,
+SAS-00012,PROG-001,,2025-11,free_reduced_lunch,true,69,629,0.8331,403.88,false,
+SAS-00013,PROG-001,,2025-09,gender,F,64,637,0.8241,442.94,false,
+SAS-00014,PROG-001,,2025-10,gender,F,64,512,0.8258,354.27,false,
+SAS-00015,PROG-001,,2025-11,gender,F,64,579,0.8307,402.44,false,
+SAS-00016,PROG-001,,2025-09,gender,M,51,455,0.7386,396.55,false,
+SAS-00017,PROG-001,,2025-10,gender,M,51,411,0.8303,356.8,false,
+SAS-00018,PROG-001,,2025-11,gender,M,51,448,0.8,389.57,false,
+SAS-00019,PROG-001,,2025-09,gender,NB,6,55,,,true,n < 10
+SAS-00020,PROG-001,,2025-10,gender,NB,6,55,,,true,n < 10
+SAS-00021,PROG-001,,2025-11,gender,NB,6,55,,,true,n < 10
+SAS-00022,PROG-001,,2025-09,gender,U,6,53,,,true,n < 10
+SAS-00023,PROG-001,,2025-10,gender,U,6,49,,,true,n < 10
+SAS-00024,PROG-001,,2025-11,gender,U,6,54,,,true,n < 10
+SAS-00025,PROG-001,,2025-09,grade_level,3,20,187,0.7759,416.65,false,
+SAS-00026,PROG-001,,2025-10,grade_level,3,20,168,0.8155,370.65,false,
+SAS-00027,PROG-001,,2025-11,grade_level,3,20,181,0.8153,398.8,false,
+SAS-00028,PROG-001,,2025-09,grade_level,4,23,208,0.7761,399.48,false,
+SAS-00029,PROG-001,,2025-10,grade_level,4,23,186,0.8158,359.0,false,
+SAS-00030,PROG-001,,2025-11,grade_level,4,23,195,0.7992,376.7,false,
+SAS-00031,PROG-001,,2025-09,grade_level,5,12,111,0.7551,411.58,false,
+SAS-00032,PROG-001,,2025-10,grade_level,5,12,99,0.8049,364.75,false,
+SAS-00033,PROG-001,,2025-11,grade_level,5,12,112,0.8296,414.83,false,
+SAS-00034,PROG-001,,2025-09,grade_level,6,24,227,0.7828,421.12,false,
+SAS-00035,PROG-001,,2025-10,grade_level,6,24,182,0.7982,336.25,false,
+SAS-00036,PROG-001,,2025-11,grade_level,6,24,215,0.8113,398.21,false,
+SAS-00037,PROG-001,,2025-09,grade_level,7,24,226,0.7793,420.38,false,
+SAS-00038,PROG-001,,2025-10,grade_level,7,24,188,0.8356,347.83,false,
+SAS-00039,PROG-001,,2025-11,grade_level,7,24,214,0.8168,395.5,false,
+SAS-00040,PROG-001,,2025-09,grade_level,8,24,241,0.8397,446.33,false,
+SAS-00041,PROG-001,,2025-10,grade_level,8,24,204,0.8608,375.62,false,
+SAS-00042,PROG-001,,2025-11,grade_level,8,24,219,0.8488,406.04,false,
+SAS-00043,PROG-001,,2025-09,iep,false,113,1083,0.8016,426.06,false,
+SAS-00044,PROG-001,,2025-10,iep,false,113,938,0.8368,367.79,false,
+SAS-00045,PROG-001,,2025-11,iep,false,113,1037,0.8376,407.38,false,
+SAS-00046,PROG-001,,2025-09,iep,true,14,117,0.6802,373.07,false,
+SAS-00047,PROG-001,,2025-10,iep,true,14,89,0.7063,280.0,false,
+SAS-00048,PROG-001,,2025-11,iep,true,14,99,0.6689,312.71,false,
+SAS-00049,PROG-001,,2025-09,race_ethnicity,AIAN,3,28,,,true,n < 10
+SAS-00050,PROG-001,,2025-10,race_ethnicity,AIAN,3,24,,,true,n < 10
+SAS-00051,PROG-001,,2025-11,race_ethnicity,AIAN,3,27,,,true,n < 10
+SAS-00052,PROG-001,,2025-09,race_ethnicity,Asian,12,115,0.7931,427.08,false,
+SAS-00053,PROG-001,,2025-10,race_ethnicity,Asian,12,88,0.7521,323.92,false,
+SAS-00054,PROG-001,,2025-11,race_ethnicity,Asian,12,102,0.8095,376.25,false,
+SAS-00055,PROG-001,,2025-09,race_ethnicity,Black,34,313,0.7728,408.21,false,
+SAS-00056,PROG-001,,2025-10,race_ethnicity,Black,34,270,0.8108,351.88,false,
+SAS-00057,PROG-001,,2025-11,race_ethnicity,Black,34,297,0.792,388.82,false,
+SAS-00058,PROG-001,,2025-09,race_ethnicity,Hispanic,43,426,0.8083,441.6,false,
+SAS-00059,PROG-001,,2025-10,race_ethnicity,Hispanic,43,352,0.8482,362.86,false,
+SAS-00060,PROG-001,,2025-11,race_ethnicity,Hispanic,43,401,0.8442,414.23,false,
+SAS-00061,PROG-001,,2025-09,race_ethnicity,NHPI,4,42,,,true,n < 10
+SAS-00062,PROG-001,,2025-10,race_ethnicity,NHPI,4,30,,,true,n < 10
+SAS-00063,PROG-001,,2025-11,race_ethnicity,NHPI,4,35,,,true,n < 10
+SAS-00064,PROG-001,,2025-09,race_ethnicity,TwoOrMore,7,59,,,true,n < 10
+SAS-00065,PROG-001,,2025-10,race_ethnicity,TwoOrMore,7,61,,,true,n < 10
+SAS-00066,PROG-001,,2025-11,race_ethnicity,TwoOrMore,7,59,,,true,n < 10
+SAS-00067,PROG-001,,2025-09,race_ethnicity,Unknown,1,12,,,true,n < 10
+SAS-00068,PROG-001,,2025-10,race_ethnicity,Unknown,1,7,,,true,n < 10
+SAS-00069,PROG-001,,2025-11,race_ethnicity,Unknown,1,11,,,true,n < 10
+SAS-00070,PROG-001,,2025-09,race_ethnicity,White,23,205,0.7537,394.91,false,
+SAS-00071,PROG-001,,2025-10,race_ethnicity,White,23,195,0.8515,373.43,false,
+SAS-00072,PROG-001,,2025-11,race_ethnicity,White,23,204,0.8293,393.91,false,

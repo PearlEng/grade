@@ -1,0 +1,4 @@
+school_id,school_name,program_id,district_id,enrollment,locale,title_i,grade_span
+SCH-001,Lincoln Elementary,PROG-001,DIST-001,420,urban,true,K-5
+SCH-002,Roosevelt Middle School,PROG-001,DIST-001,310,suburban,true,6-8
+SCH-003,Jefferson Academy,PROG-001,DIST-001,185,rural,false,K-8
