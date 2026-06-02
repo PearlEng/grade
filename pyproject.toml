@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "grade"
@@ -20,6 +20,13 @@ dev = [
     "mypy>=1.10",
     "pytest>=8.2",
 ]
+
+# ---------------------------------------------------------------------------
+# Setuptools — explicit package discovery (flat layout: ship code, not
+# tests/fixtures/docs/examples)
+# ---------------------------------------------------------------------------
+[tool.setuptools.packages.find]
+include = ["benchmark*", "runner*"]
 
 # ---------------------------------------------------------------------------
 # Ruff
