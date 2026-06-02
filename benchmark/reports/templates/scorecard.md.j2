@@ -1,0 +1,41 @@
+# GRADE Scorecard — {model_id}
+
+**Result ID:** {result_id}
+**GRADE Version:** {grade_version}
+**Scored At (UTC):** {scored_at_utc}
+**Tasks Evaluated:** {task_count}
+**Runs per Task:** {run_count}
+
+---
+
+## Overall Scores
+
+**Composite:** {overall_composite}
+
+| Dimension | Weight | Score |
+|-----------|--------|-------|
+| Grounding Accuracy | 35% | {overall_grounding_accuracy} |
+| Insight Quality | 20% | {overall_insight_quality} |
+| Evidence Linkage | 15% | {overall_evidence_linkage} |
+| Calibration & Limitation Handling | 15% | {overall_calibration_limitation_handling} |
+| Consistency | 10% | {overall_consistency} |
+| Structure & Usability | 5% | {overall_structure_usability} |
+
+---
+
+## Per-Track Scores
+
+{per_track_table}
+
+---
+
+## Per-Pack Scores
+
+{per_pack_table}
+
+---
+
+## Per-Task Scores
+
+{per_task_table}
+{diff_section}
