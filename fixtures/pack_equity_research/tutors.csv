@@ -1,0 +1,10 @@
+tutor_id,program_id,school_id,hire_date,certification_level,subject_specialization,active,sessions_delivered_ytd,avg_session_rating
+TUT-001,PROG-001,SCH-001,2025-08-11,certified_teacher,both,true,47,3.28
+TUT-002,PROG-001,SCH-001,2025-03-27,paraprofessional,both,true,35,3.06
+TUT-003,PROG-001,SCH-001,2025-03-24,certified_teacher,both,true,68,
+TUT-004,PROG-001,SCH-001,2025-04-20,paraprofessional,both,true,64,3.9
+TUT-005,PROG-001,SCH-002,2025-05-11,paraprofessional,math,true,78,4.4
+TUT-006,PROG-001,SCH-002,2025-05-27,certified_teacher,math,true,78,3.19
+TUT-007,PROG-001,SCH-002,2025-03-25,certified_teacher,reading,true,68,3.09
+TUT-008,PROG-001,SCH-003,2025-06-26,paraprofessional,reading,true,35,4.66
+TUT-009,PROG-001,SCH-003,2025-08-06,paraprofessional,reading,true,66,

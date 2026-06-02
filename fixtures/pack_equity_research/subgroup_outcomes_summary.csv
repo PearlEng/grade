@@ -1,0 +1,49 @@
+summary_id,program_id,school_id,assessment_period,subgroup_dimension,subgroup_value,n_students,avg_scale_score,avg_score_gain,benchmark_proficiency_rate,suppressed,suppression_reason
+SOS-00001,PROG-001,,fall_2025,ell,false,118,407.6,,0.5425,false,
+SOS-00002,PROG-001,,fall_2025,ell,true,17,407.5,,0.5383,false,
+SOS-00003,PROG-001,,fall_2025,free_reduced_lunch,false,62,416.6,,0.5988,false,
+SOS-00004,PROG-001,,fall_2025,free_reduced_lunch,true,73,407.8,,0.5944,false,
+SOS-00005,PROG-001,,fall_2025,gender,F,70,418.7,,0.628,false,
+SOS-00006,PROG-001,,fall_2025,gender,M,52,410.8,,0.5337,false,
+SOS-00007,PROG-001,,fall_2025,gender,NB,7,,,,true,n < 10
+SOS-00008,PROG-001,,fall_2025,gender,U,6,,,,true,n < 10
+SOS-00009,PROG-001,,fall_2025,grade_level,3,22,405.1,,0.6094,false,
+SOS-00010,PROG-001,,fall_2025,grade_level,4,25,411.7,,0.5775,false,
+SOS-00011,PROG-001,,fall_2025,grade_level,5,14,404.2,,0.6127,false,
+SOS-00012,PROG-001,,fall_2025,grade_level,6,25,411.0,,0.5616,false,
+SOS-00013,PROG-001,,fall_2025,grade_level,7,24,405.0,,0.5482,false,
+SOS-00014,PROG-001,,fall_2025,grade_level,8,25,411.1,,0.5606,false,
+SOS-00015,PROG-001,,fall_2025,iep,false,120,409.2,,0.5961,false,
+SOS-00016,PROG-001,,fall_2025,iep,true,15,404.8,,0.4329,false,
+SOS-00017,PROG-001,,fall_2025,race_ethnicity,AIAN,4,,,,true,n < 10
+SOS-00018,PROG-001,,fall_2025,race_ethnicity,Asian,13,412.2,,0.5402,false,
+SOS-00019,PROG-001,,fall_2025,race_ethnicity,Black,36,413.0,,0.5407,false,
+SOS-00020,PROG-001,,fall_2025,race_ethnicity,Hispanic,45,410.8,,0.5778,false,
+SOS-00021,PROG-001,,fall_2025,race_ethnicity,NHPI,4,,,,true,n < 10
+SOS-00022,PROG-001,,fall_2025,race_ethnicity,TwoOrMore,7,,,,true,n < 10
+SOS-00023,PROG-001,,fall_2025,race_ethnicity,Unknown,1,,,,true,n < 10
+SOS-00024,PROG-001,,fall_2025,race_ethnicity,White,25,406.6,,0.6109,false,
+SOS-00025,PROG-001,,spring_2026,ell,false,118,413.4,7.26,0.561,false,
+SOS-00026,PROG-001,,spring_2026,ell,true,17,407.4,8.58,0.5888,false,
+SOS-00027,PROG-001,,spring_2026,free_reduced_lunch,false,62,413.2,10.55,0.5929,false,
+SOS-00028,PROG-001,,spring_2026,free_reduced_lunch,true,73,410.9,10.89,0.5641,false,
+SOS-00029,PROG-001,,spring_2026,gender,F,70,413.8,9.3,0.609,false,
+SOS-00030,PROG-001,,spring_2026,gender,M,52,415.0,7.45,0.5832,false,
+SOS-00031,PROG-001,,spring_2026,gender,NB,7,,,,true,n < 10
+SOS-00032,PROG-001,,spring_2026,gender,U,6,,,,true,n < 10
+SOS-00033,PROG-001,,spring_2026,grade_level,3,22,415.3,7.65,0.6004,false,
+SOS-00034,PROG-001,,spring_2026,grade_level,4,25,412.6,8.64,0.5822,false,
+SOS-00035,PROG-001,,spring_2026,grade_level,5,14,418.5,7.68,0.5595,false,
+SOS-00036,PROG-001,,spring_2026,grade_level,6,25,408.4,10.75,0.6076,false,
+SOS-00037,PROG-001,,spring_2026,grade_level,7,24,408.8,10.0,0.6201,false,
+SOS-00038,PROG-001,,spring_2026,grade_level,8,25,414.7,9.9,0.5883,false,
+SOS-00039,PROG-001,,spring_2026,iep,false,120,411.0,9.24,0.6177,false,
+SOS-00040,PROG-001,,spring_2026,iep,true,15,403.2,8.06,0.3929,false,
+SOS-00041,PROG-001,,spring_2026,race_ethnicity,AIAN,4,,,,true,n < 10
+SOS-00042,PROG-001,,spring_2026,race_ethnicity,Asian,13,419.1,9.97,0.6143,false,
+SOS-00043,PROG-001,,spring_2026,race_ethnicity,Black,36,404.8,7.57,0.5741,false,
+SOS-00044,PROG-001,,spring_2026,race_ethnicity,Hispanic,45,413.3,9.92,0.5909,false,
+SOS-00045,PROG-001,,spring_2026,race_ethnicity,NHPI,4,,,,true,n < 10
+SOS-00046,PROG-001,,spring_2026,race_ethnicity,TwoOrMore,7,,,,true,n < 10
+SOS-00047,PROG-001,,spring_2026,race_ethnicity,Unknown,1,,,,true,n < 10
+SOS-00048,PROG-001,,spring_2026,race_ethnicity,White,25,405.3,7.06,0.5628,false,

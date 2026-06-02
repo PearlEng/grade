@@ -320,4 +320,249 @@ RESEARCH_REFS: list[dict[str, str | None]] = [
             "when applying findings to middle-grade math tutoring contexts."
         ),
     },
+    {
+        "ref_id": "R4",
+        "citation": (
+            "Fryer, R. G. (2014). Injecting successful charter school strategies into "
+            "traditional public schools: Evidence from field experiments. "
+            "The Quarterly Journal of Economics, 129(3), 1355–1407."
+        ),
+        "summary": (
+            "A randomized field experiment testing whether importing five key practices from "
+            "high-performing charter schools (including intensive small-group tutoring) into "
+            "traditional public schools improves math and reading achievement. "
+            "Schools that adopted the full bundle of practices, including high-dosage tutoring, "
+            "saw significant gains in math achievement (0.15–0.23 SD) within one year."
+        ),
+        "key_finding": (
+            "High-dosage tutoring is among the most impactful individual components when "
+            "implemented within a coherent instructional model; schools adopting tutoring alone "
+            "without broader instructional alignment showed smaller effects."
+        ),
+        "relevance_to_program": (
+            "The fixture program operates as a stand-alone tutoring add-on; Fryer's finding "
+            "suggests that alignment between tutoring content and classroom instruction may "
+            "be critical to realizing the full effect-size potential."
+        ),
+        "supports_claim": None,
+        "contradicts_claim": (
+            "Stand-alone high-dosage tutoring may produce smaller gains than projected if "
+            "it is not coordinated with classroom instruction and school culture."
+        ),
+        "caution": (
+            "Fryer's study was conducted in Houston public schools; implementation quality "
+            "and school context may differ substantially from other districts."
+        ),
+    },
+    {
+        "ref_id": "R5",
+        "citation": (
+            "Cook, P. J., Dodge, K., Farkas, G., Fryer, R. G., Guryan, J., Ludwig, J., "
+            "Mayer, S., Pollack, H., & Steinberg, L. (2015). Not too late: Improving academic "
+            "outcomes for disadvantaged youth. IPR Working Paper WP-15-01, Northwestern "
+            "University Institute for Policy Research."
+        ),
+        "summary": (
+            "Evaluates a randomized trial of intensive in-school mentoring and tutoring for "
+            "high-school students in Chicago. The program combined one-on-one tutoring during "
+            "the school day with social-emotional learning components. "
+            "Participants showed a 0.5 SD improvement in math achievement and a 46% reduction "
+            "in violent crime arrests over two years."
+        ),
+        "key_finding": (
+            "Intensive tutoring embedded within the school day for high-risk youth produces "
+            "large academic and behavioral co-benefits, suggesting attendance and engagement "
+            "barriers can be overcome through in-school scheduling."
+        ),
+        "relevance_to_program": (
+            "The fixture program's elevated absenteeism among IEP students may be partially "
+            "addressable by shifting to in-school session scheduling, which Cook et al. found "
+            "substantially reduced engagement barriers for high-need students."
+        ),
+        "supports_claim": (
+            "Embedding tutoring sessions within the school day is a viable strategy to improve "
+            "attendance among high-need subgroups, including students with IEPs."
+        ),
+        "contradicts_claim": None,
+        "caution": (
+            "Cook et al. studied a high-school population in an urban district; effects may "
+            "not transfer directly to elementary or middle-grade contexts."
+        ),
+    },
+    {
+        "ref_id": "R6",
+        "citation": (
+            "Kraft, M. A., & Falken, G. T. (2021). A blueprint for scaling tutoring and "
+            "mentoring programs in public schools. AERA Open, 7, 1–21."
+        ),
+        "summary": (
+            "Provides a practical framework for scaling high-dosage tutoring programs, "
+            "identifying six key design levers: tutor selection, training, scheduling, "
+            "data use, alignment with curriculum, and family engagement. "
+            "Programs that scored high on all six levers maintained effect sizes above 0.2 SD "
+            "at scale, while those that cut corners on data use showed the sharpest declines."
+        ),
+        "key_finding": (
+            "Data use — defined as weekly monitoring of attendance and learning progress at "
+            "the student level — is the single design lever most predictive of sustained "
+            "effect sizes when programs scale to hundreds of sites."
+        ),
+        "relevance_to_program": (
+            "The fixture program's satisfaction dip and IEP attendance gap are exactly the "
+            "kind of signals that Kraft & Falken argue should trigger immediate mid-quarter "
+            "program adjustments via a weekly data-review cadence."
+        ),
+        "supports_claim": (
+            "The fixture program's data — including the IEP attendance gap and October "
+            "satisfaction dip — provide actionable signals that, per Kraft & Falken, warrant "
+            "a program adjustment before the end of the reporting period."
+        ),
+        "contradicts_claim": None,
+        "caution": (
+            "Kraft & Falken's framework is prescriptive; compliance with individual levers "
+            "does not guarantee outcome improvement without implementation fidelity."
+        ),
+    },
+    {
+        "ref_id": "R7",
+        "citation": (
+            "Guryan, J., Ludwig, J., Bhatt, M. P., Cook, P. J., Davis, J. M. V., "
+            "Dodge, K., Farkas, G., Mayer, S. E., Pollack, H., Steinberg, L., & "
+            "Tessler-Lavine, I. (2023). Not too late: A randomized controlled trial of "
+            "a high-dosage tutoring program. American Economic Review, 113(3), 738–765."
+        ),
+        "summary": (
+            "A large-scale randomized controlled trial of in-school high-dosage math tutoring "
+            "for ninth-grade students in Chicago public schools. Tutoring was delivered during "
+            "the school day in a dedicated elective period. "
+            "The program produced 0.10 SD gains in math achievement per semester of treatment, "
+            "with larger gains for students who received more sessions."
+        ),
+        "key_finding": (
+            "Dosage-response relationship is strongly positive: each additional 20 sessions "
+            "attended corresponds to an estimated 0.04 SD additional math gain, reinforcing "
+            "the importance of maximizing realized attendance."
+        ),
+        "relevance_to_program": (
+            "The fixture program's attendance tracking is directly relevant here — the "
+            "IEP attendance gap of ~11 pp translates, per Guryan et al.'s dosage-response "
+            "estimate, into a meaningful projected outcome shortfall for this subgroup."
+        ),
+        "supports_claim": (
+            "Every percentage-point improvement in attendance for IEP students corresponds "
+            "to measurable expected gains in academic outcomes based on the dosage-response "
+            "evidence."
+        ),
+        "contradicts_claim": None,
+        "caution": (
+            "Guryan et al.'s study covers ninth-grade math in Chicago; dosage-response "
+            "slopes may differ for younger students or reading-focused programs."
+        ),
+    },
+    {
+        "ref_id": "R8",
+        "citation": (
+            "Pellegrini, M., Lake, C., Inns, A., & Slavin, R. E. (2018). Effective programs "
+            "in elementary mathematics: A best-evidence synthesis. "
+            "Best Evidence Encyclopedia, Johns Hopkins University School of Education."
+        ),
+        "summary": (
+            "A best-evidence synthesis of 78 studies of elementary mathematics programs, "
+            "finding that tutoring approaches (both one-on-one and small-group) consistently "
+            "outperform technology-only and curriculum-only interventions. "
+            "Small-group tutoring (2–6 students) showed mean effect sizes of 0.31 SD, "
+            "comparable to one-on-one tutoring at substantially lower cost per student."
+        ),
+        "key_finding": (
+            "Small-group tutoring of 3–6 students is nearly as effective as one-on-one "
+            "tutoring for elementary math, making it the most cost-efficient format for "
+            "programs serving large numbers of students."
+        ),
+        "relevance_to_program": (
+            "The fixture program uses groups of 3–5 students — within the range Pellegrini "
+            "et al. find to be effective — providing support for the program's group-size "
+            "design choice."
+        ),
+        "supports_claim": (
+            "The 3–5 student group sizes used in this program are well-supported by the "
+            "evidence base for elementary math tutoring effectiveness."
+        ),
+        "contradicts_claim": None,
+        "caution": (
+            "Best-evidence syntheses weight higher-quality studies; studies of small-group "
+            "tutoring for ELL students and students with IEPs are underrepresented in the "
+            "evidence base reviewed."
+        ),
+    },
+    {
+        "ref_id": "R9",
+        "citation": (
+            "Dietrichson, J., Bøg, M., Filges, T., & Klint Jørgensen, A.-M. (2017). "
+            "Academic interventions for elementary and middle school students with low "
+            "socioeconomic status: A systematic review and meta-analysis. "
+            "Review of Educational Research, 87(2), 243–282."
+        ),
+        "summary": (
+            "A systematic review of 101 studies examining academic interventions for "
+            "low-socioeconomic-status (low-SES) students in grades K–8. "
+            "Tutoring and small-group instruction showed the largest effect sizes (mean 0.36 SD) "
+            "among all intervention categories, substantially outperforming feedback-only or "
+            "curriculum-alignment approaches. Effects were largest for students in grades 1–5."
+        ),
+        "key_finding": (
+            "For low-SES students (proxied by free/reduced lunch eligibility), tutoring "
+            "interventions yield effect sizes approximately twice as large as non-tutoring "
+            "interventions, underscoring the equity value of high-dosage tutoring for "
+            "Title I school populations."
+        ),
+        "relevance_to_program": (
+            "Two of the three fixture schools are Title I, and 60% of students in the "
+            "fixture data are FRL-eligible — precisely the population Dietrichson et al. "
+            "find to benefit most from tutoring interventions."
+        ),
+        "supports_claim": (
+            "The program's Title I school focus and high FRL-eligible population align with "
+            "the subgroups for whom the tutoring evidence base is strongest."
+        ),
+        "contradicts_claim": None,
+        "caution": (
+            "Many studies in the synthesis were conducted outside the United States; "
+            "SES measurement and school context vary considerably across the studies reviewed."
+        ),
+    },
+    {
+        "ref_id": "R10",
+        "citation": (
+            "Vaughn, S., Wanzek, J., Murray, C. S., & Roberts, G. (2012). Intensive "
+            "interventions for students struggling in reading and mathematics: A practice "
+            "guide. Portsmouth, NH: RMC Research Corporation, Center on Instruction."
+        ),
+        "summary": (
+            "A practitioner-focused synthesis of Tier 3 intensive intervention research for "
+            "students with persistent learning difficulties, including those with IEPs. "
+            "Recommends small-group instruction (1–3 students) with explicit, systematic "
+            "delivery and frequent progress monitoring (at minimum bi-weekly) for students "
+            "with IEPs or significant skill gaps."
+        ),
+        "key_finding": (
+            "Students with IEPs receiving intensive small-group interventions with bi-weekly "
+            "progress monitoring show 0.40–0.60 SD improvements over typical school-year "
+            "instruction alone, but only when session attendance exceeds 80%."
+        ),
+        "relevance_to_program": (
+            "The fixture data shows IEP students attending at approximately 71% — below the "
+            "80% threshold Vaughn et al. identify as the minimum for realizing the full "
+            "intervention effect. This is a critical program risk to flag."
+        ),
+        "supports_claim": None,
+        "contradicts_claim": (
+            "At the observed ~71% IEP attendance rate in the fixture data, students with "
+            "IEPs are below the minimum attendance threshold Vaughn et al. associate with "
+            "effective intensive intervention, putting their expected outcomes at risk."
+        ),
+        "caution": (
+            "Vaughn et al.'s synthesis focuses on Tier 3 intervention and may overstate "
+            "the attendance threshold for Tier 2 programs like the fixture program."
+        ),
+    },
 ]
