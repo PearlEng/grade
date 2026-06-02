@@ -152,9 +152,9 @@ class TestDeterminism:
 
         files_a = sorted(f.name for f in pack_a.iterdir() if f.name != "manifest.json")
         for fname in files_a:
-            assert _sha256(pack_a / fname) == _sha256(
-                pack_b / fname
-            ), f"{fname}: hash differs between runs"
+            assert _sha256(pack_a / fname) == _sha256(pack_b / fname), (
+                f"{fname}: hash differs between runs"
+            )
 
     def test_equity_byte_identical(self, tmp_path: Path) -> None:
         """Equity & Research pack re-run with same seed produces identical files."""
@@ -165,9 +165,9 @@ class TestDeterminism:
 
         files_a = sorted(f.name for f in pack_a.iterdir() if f.name != "manifest.json")
         for fname in files_a:
-            assert _sha256(pack_a / fname) == _sha256(
-                pack_b / fname
-            ), f"{fname}: hash differs between runs"
+            assert _sha256(pack_a / fname) == _sha256(pack_b / fname), (
+                f"{fname}: hash differs between runs"
+            )
 
     def test_different_seeds_differ(self, tmp_path: Path) -> None:
         """Different seeds must produce different students.csv."""
@@ -185,9 +185,9 @@ class TestDeterminism:
         pack_a = dir_a / "pack_operations"
         pack_b = dir_b / "pack_operations"
         for fname in sorted(f.name for f in pack_a.iterdir() if f.name != "manifest.json"):
-            assert _sha256(pack_a / fname) == _sha256(
-                pack_b / fname
-            ), f"CLI: {fname} differs between runs"
+            assert _sha256(pack_a / fname) == _sha256(pack_b / fname), (
+                f"CLI: {fname} differs between runs"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -597,9 +597,9 @@ class TestSignals:
         assert suppressed, "AIAN subgroup is not suppressed"
         # All suppressed rows must have null attendance_rate
         for r in suppressed:
-            assert (
-                r["attendance_rate"] == ""
-            ), f"AIAN suppressed row has non-null attendance_rate: {r['attendance_rate']}"
+            assert r["attendance_rate"] == "", (
+                f"AIAN suppressed row has non-null attendance_rate: {r['attendance_rate']}"
+            )
 
     def test_aian_n_below_threshold(self, equity_dir: Path) -> None:
         """AIAN n_students must be below suppression threshold in all months."""
@@ -610,17 +610,17 @@ class TestSignals:
             if r["subgroup_dimension"] == "race_ethnicity" and r["subgroup_value"] == "AIAN"
         ]
         for r in aian_rows:
-            assert (
-                int(r["n_students"]) < spec.SUPPRESSION_THRESHOLD
-            ), f"AIAN n_students={r['n_students']} >= suppression threshold"
+            assert int(r["n_students"]) < spec.SUPPRESSION_THRESHOLD, (
+                f"AIAN n_students={r['n_students']} >= suppression threshold"
+            )
 
     def test_aian_student_count_in_students_csv(self, equity_dir: Path) -> None:
         """students.csv must have exactly AIAN_TARGET_N AIAN students."""
         rows = _read_csv(equity_dir / "students.csv")
         aian_count = sum(1 for r in rows if r["race_ethnicity"] == "AIAN")
-        assert (
-            aian_count == spec.AIAN_TARGET_N
-        ), f"Expected {spec.AIAN_TARGET_N} AIAN students, got {aian_count}"
+        assert aian_count == spec.AIAN_TARGET_N, (
+            f"Expected {spec.AIAN_TARGET_N} AIAN students, got {aian_count}"
+        )
 
     # Signal 3: IEP attendance disparity
     def test_iep_attendance_disparity(self, equity_dir: Path) -> None:
@@ -641,9 +641,9 @@ class TestSignals:
         assert false_rates, "No IEP=false attendance rows with data"
         avg_iep = sum(true_rates) / len(true_rates)
         avg_non_iep = sum(false_rates) / len(false_rates)
-        assert (
-            avg_iep < avg_non_iep
-        ), f"Expected IEP attendance ({avg_iep:.3f}) < non-IEP ({avg_non_iep:.3f})"
+        assert avg_iep < avg_non_iep, (
+            f"Expected IEP attendance ({avg_iep:.3f}) < non-IEP ({avg_non_iep:.3f})"
+        )
 
     def test_iep_disparity_magnitude(self, equity_dir: Path) -> None:
         """IEP attendance gap must be at least half the specified penalty."""
@@ -672,21 +672,21 @@ class TestSignals:
         rows = _read_csv(equity_dir / "subgroup_attendance_summary.csv")
         for r in rows:
             if r["suppressed"] == "true":
-                assert (
-                    r["attendance_rate"] == ""
-                ), f"Suppressed row has non-null attendance_rate: {r}"
-                assert (
-                    r["avg_dosage_minutes"] == ""
-                ), f"Suppressed row has non-null avg_dosage_minutes: {r}"
+                assert r["attendance_rate"] == "", (
+                    f"Suppressed row has non-null attendance_rate: {r}"
+                )
+                assert r["avg_dosage_minutes"] == "", (
+                    f"Suppressed row has non-null avg_dosage_minutes: {r}"
+                )
 
     def test_suppressed_rows_outcomes(self, equity_dir: Path) -> None:
         """All suppressed=true rows in subgroup_outcomes_summary must have empty metrics."""
         rows = _read_csv(equity_dir / "subgroup_outcomes_summary.csv")
         for r in rows:
             if r["suppressed"] == "true":
-                assert (
-                    r["avg_scale_score"] == ""
-                ), f"Suppressed row has non-null avg_scale_score: {r}"
+                assert r["avg_scale_score"] == "", (
+                    f"Suppressed row has non-null avg_scale_score: {r}"
+                )
 
     # CLI invocation test
     def test_cli_all_packs(self, tmp_path: Path) -> None:
