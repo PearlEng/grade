@@ -386,8 +386,10 @@ class OpenRouterAdapter:
         api_key: OpenRouter API key.  If ``None``, falls back to the
             ``OPENROUTER_API_KEY`` environment variable.  Raises
             :exc:`EnvironmentError` at run time if neither is set.
-        temperature: Sampling temperature.  Defaults to ``0.0`` for
-            reproducibility.
+        temperature: Sampling temperature.  Defaults to ``1.0`` so that
+            repeated runs vary, making the C4 consistency dimension
+            meaningful.  Pass ``0.0`` explicitly for fully deterministic
+            inference (e.g. debugging or reproducing a specific output).
         max_tokens: Maximum tokens to request from the model.  When ``None``
             (the default), falls back to the ``GRADE_OPENROUTER_MAX_TOKENS``
             environment variable if set, otherwise uses
@@ -410,7 +412,7 @@ class OpenRouterAdapter:
         self,
         model: str = "anthropic/claude-sonnet-4-5",
         api_key: str | None = None,
-        temperature: float = 0.0,
+        temperature: float = 1.0,
         max_tokens: int | None = None,
     ) -> None:
         """Initialise the adapter.
@@ -418,7 +420,9 @@ class OpenRouterAdapter:
         Args:
             model: OpenRouter model slug or shorthand key.
             api_key: API key; falls back to ``OPENROUTER_API_KEY`` env var.
-            temperature: Sampling temperature for the model call.
+            temperature: Sampling temperature for the model call.  Defaults
+                to ``1.0`` so that repeated benchmark runs vary, making the
+                C4 consistency dimension meaningful.
             max_tokens: Maximum tokens in the model response.  When ``None``
                 (the default), the value is resolved from the
                 ``GRADE_OPENROUTER_MAX_TOKENS`` environment variable if set,

@@ -120,7 +120,11 @@ def _resolve_pack_path(pack_arg: str, repo_root: Path) -> tuple[Path, str | None
     return resolved.resolve(), pack_id
 
 
-def _build_adapter(adapter_name: str, model: str | None = None) -> Adapter:
+def _build_adapter(
+    adapter_name: str,
+    model: str | None = None,
+    temperature: float | None = None,
+) -> Adapter:
     """Instantiate an adapter from the registry by name.
 
     Args:
@@ -129,6 +133,10 @@ def _build_adapter(adapter_name: str, model: str | None = None) -> Adapter:
             provided and the adapter constructor accepts a ``model`` keyword
             argument, it is forwarded.  Ignored by adapters that don't accept
             it (e.g. ``StubAdapter``).
+        temperature: Optional sampling temperature passed via ``--temperature``.
+            If provided and the adapter constructor accepts a ``temperature``
+            keyword argument, it is forwarded.  Ignored by adapters that don't
+            accept it (e.g. ``StubAdapter``).
 
     Returns:
         An instantiated :class:`~runner.adapters.base.Adapter`.
@@ -140,11 +148,16 @@ def _build_adapter(adapter_name: str, model: str | None = None) -> Adapter:
         known = ", ".join(sorted(_ADAPTER_REGISTRY))
         raise KeyError(f"Unknown adapter '{adapter_name}'.  Known adapters: {known}")
     factory = _ADAPTER_REGISTRY[adapter_name]
+    kwargs: dict[str, object] = {}
     if model is not None:
+        kwargs["model"] = model
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if kwargs:
         try:
-            return factory(model=model)  # type: ignore[no-any-return]
+            return factory(**kwargs)  # type: ignore[no-any-return]
         except TypeError:
-            pass  # adapter doesn't accept model kwarg — fall through
+            pass  # adapter doesn't accept these kwargs — fall through
     return factory()  # type: ignore[no-any-return]
 
 
@@ -188,6 +201,18 @@ def build_parser() -> argparse.ArgumentParser:
             "Model slug or shorthand forwarded to the adapter "
             "(e.g. 'anthropic/claude-sonnet-4-5', 'claude-sonnet-4-6').  "
             "Required for the openrouter adapter; ignored by the stub."
+        ),
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        metavar="TEMP",
+        help=(
+            "Sampling temperature forwarded to the adapter (default: 1.0).  "
+            "Use 0.0 for deterministic inference; higher values increase "
+            "response variability, which is needed for the C4 consistency "
+            "dimension.  Ignored by the stub adapter."
         ),
     )
     parser.add_argument(
@@ -269,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- Build adapter ---
     try:
-        adapter = _build_adapter(args.adapter, model=args.model)
+        adapter = _build_adapter(args.adapter, model=args.model, temperature=args.temperature)
     except KeyError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
