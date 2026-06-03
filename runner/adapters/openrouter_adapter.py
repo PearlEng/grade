@@ -111,25 +111,58 @@ def _resolve_model(model: str) -> str:
 def _build_prompt(task: dict[str, Any]) -> str:
     """Construct the user prompt to send to the model.
 
-    Includes the task's ``user_prompt`` plus a description of the allowed
-    fixture inputs and a structured-output instruction so the model returns
-    a JSON block that the adapter can parse.
+    Includes the task's ``user_prompt``, the full contents of every fixture
+    file referenced by ``allowed_inputs`` (embedded verbatim under clearly
+    delimited file headers), and a structured-output instruction so the model
+    returns a response that the adapter can parse.
+
+    When the task dict contains a ``fixtures`` key (a ``{filename: contents}``
+    mapping populated by the dispatcher), each file's full contents are
+    embedded in the prompt so the model has the actual data to reason over
+    rather than just filenames.
 
     Args:
-        task: Validated task definition dict.
+        task: Validated task definition dict, optionally enriched with a
+            ``fixtures`` key by the dispatcher.
 
     Returns:
-        A fully formatted prompt string.
+        A fully formatted prompt string with fixture data inlined.
     """
     user_prompt = task.get("user_prompt", "")
     allowed_inputs = task.get("allowed_inputs", [])
-    inputs_list = ", ".join(allowed_inputs) if allowed_inputs else "(none)"
+    fixtures: dict[str, str] = task.get("fixtures", {})
 
-    lines = [
-        user_prompt,
-        "",
-        f"Available data sources: {inputs_list}",
-        "",
+    lines: list[str] = [user_prompt, ""]
+
+    if fixtures:
+        lines += [
+            "The following data files are provided in full for you to analyse.",
+            "Base your answer exclusively on the data below — do not assume or",
+            "fabricate any values.",
+            "",
+        ]
+        for filename in allowed_inputs:
+            if filename in fixtures:
+                lines += [
+                    f"=== FILE: {filename} ===",
+                    fixtures[filename],
+                    f"=== END FILE: {filename} ===",
+                    "",
+                ]
+        # List any allowed_inputs that had no fixture data (graceful fallback).
+        missing = [f for f in allowed_inputs if f not in fixtures]
+        if missing:
+            missing_list = ", ".join(missing)
+            lines += [
+                f"Note: the following referenced files were not available: {missing_list}",
+                "",
+            ]
+    else:
+        # No fixture data — fall back to listing filenames only.
+        inputs_list = ", ".join(allowed_inputs) if allowed_inputs else "(none)"
+        lines += [f"Available data sources: {inputs_list}", ""]
+
+    lines += [
         "---",
         "Please structure your response as follows:",
         "",
