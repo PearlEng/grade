@@ -276,7 +276,10 @@ class OpenRouterAdapter:
             :exc:`EnvironmentError` at run time if neither is set.
         temperature: Sampling temperature.  Defaults to ``0.0`` for
             reproducibility.
-        max_tokens: Maximum tokens to request from the model.
+        max_tokens: Maximum tokens to request from the model.  When ``None``
+            (the default), falls back to the ``GRADE_OPENROUTER_MAX_TOKENS``
+            environment variable if set, otherwise uses
+            :attr:`DEFAULT_MAX_TOKENS` (1024).
 
     Example::
 
@@ -287,12 +290,16 @@ class OpenRouterAdapter:
     #: CLI id — ``--adapter openrouter``.
     name: str = "openrouter"
 
+    #: Default maximum tokens — lower than the original 2048 to reduce cost.
+    #: Override via ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
+    DEFAULT_MAX_TOKENS: int = 1024
+
     def __init__(
         self,
         model: str = "anthropic/claude-sonnet-4-5",
         api_key: str | None = None,
         temperature: float = 0.0,
-        max_tokens: int = 2048,
+        max_tokens: int | None = None,
     ) -> None:
         """Initialise the adapter.
 
@@ -300,13 +307,20 @@ class OpenRouterAdapter:
             model: OpenRouter model slug or shorthand key.
             api_key: API key; falls back to ``OPENROUTER_API_KEY`` env var.
             temperature: Sampling temperature for the model call.
-            max_tokens: Maximum tokens in the model response.
+            max_tokens: Maximum tokens in the model response.  When ``None``
+                (the default), the value is resolved from the
+                ``GRADE_OPENROUTER_MAX_TOKENS`` environment variable if set,
+                otherwise :attr:`DEFAULT_MAX_TOKENS` (1024) is used.
         """
         self._model_input = model
         self._model = _resolve_model(model)
         self._api_key = api_key  # resolved lazily in run() to support env var
         self._temperature = temperature
-        self._max_tokens = max_tokens
+        if max_tokens is not None:
+            self._max_tokens = max_tokens
+        else:
+            env_val = os.environ.get("GRADE_OPENROUTER_MAX_TOKENS")
+            self._max_tokens = int(env_val) if env_val else self.DEFAULT_MAX_TOKENS
 
     def _get_api_key(self) -> str:
         """Resolve and return the API key.
