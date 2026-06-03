@@ -9,9 +9,21 @@ The CLI:
 1. Resolves the task pack JSONL path from ``--pack`` (name or absolute path).
 2. Instantiates the requested adapter via the adapter registry.
 3. For each task in the pack, runs the adapter ``--runs`` times, validates
-   outputs, and scores with C1/C2 scorers.
-4. Aggregates results into the ``result_schema.json`` shape.
-5. Writes ``raw_outputs.jsonl`` and ``result.json`` to ``--out``.
+   outputs, and scores with C1/C2 scorers.  Tasks that raise an exception are
+   **recorded and skipped** rather than aborting the whole run.
+4. Aggregates results into the ``result_schema.json`` shape (over successful
+   tasks only).
+5. Writes ``raw_outputs.jsonl`` and ``result.json`` to ``--out``.  If any tasks
+   failed, also writes ``failures.json`` (list of ``{task_id, error}`` dicts).
+
+Partial runs
+------------
+If at least one task succeeds the runner exits with code 0 and writes a
+partial scorecard.  If **all** tasks fail it prints an error summary and exits
+with code 1 (no ``result.json`` / ``raw_outputs.jsonl`` are written).
+
+``failures.json`` is written to ``--out`` whenever at least one task fails.
+When all tasks succeed the file is not created (no empty file).
 
 Adapter registry
 ----------------
@@ -35,6 +47,7 @@ Usage examples::
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -274,6 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     task_results: list[TaskRunResult] = []
     all_outputs: list[dict] = []
     model_id_from_adapter: str | None = None
+    failures: list[dict[str, str]] = []
 
     for i, task in enumerate(tasks, start=1):
         task_id = task.get("task_id", f"task_{i}")
@@ -288,7 +302,8 @@ def main(argv: list[str] | None = None) -> int:
             )
         except Exception as exc:  # noqa: BLE001
             print(f"FAILED ({exc})", flush=True)
-            return 1
+            failures.append({"task_id": task_id, "error": str(exc)})
+            continue
 
         task_results.append(result)
         all_outputs.extend(result.outputs)
@@ -300,10 +315,20 @@ def main(argv: list[str] | None = None) -> int:
         composite_str = f"{result.composite:.3f}" if result.composite is not None else "n/a"
         print(f"composite={composite_str}", flush=True)
 
+    # --- Handle all-failure case ---
+    if not task_results:
+        print(
+            f"\nERROR: all {len(failures)} task(s) failed — no scorecard written.",
+            file=sys.stderr,
+        )
+        for f in failures:
+            print(f"  FAILED {f['task_id']}: {f['error']}", file=sys.stderr)
+        return 1
+
     # Determine effective model_id.
     effective_model_id: str = args.model_id or model_id_from_adapter or adapter.name
 
-    # --- Aggregate ---
+    # --- Aggregate (over successful tasks only) ---
     scorecard = aggregate(
         task_results=task_results,
         model_id=effective_model_id,
@@ -316,6 +341,20 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\nRaw outputs  → {raw_path}")
     print(f"Result JSON  → {result_path}")
+
+    # --- Write failures.json if any tasks failed ---
+    if failures:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        failures_path = out_dir / "failures.json"
+        with failures_path.open("w", encoding="utf-8") as fh:
+            json.dump(failures, fh, indent=2)
+            fh.write("\n")
+        print(f"Failures     → {failures_path}")
+        n_ok = len(task_results)
+        n_fail = len(failures)
+        failed_ids = ", ".join(f["task_id"] for f in failures)
+        print(f"\nSummary: {n_ok} task(s) succeeded, {n_fail} task(s) failed ({failed_ids}).")
+
     print("Done.")
     return 0
 
