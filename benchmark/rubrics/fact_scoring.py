@@ -30,6 +30,26 @@ For free-text extraction the same strict ``score_numeric`` check applies; only
 values that fall within the specified tolerance window pass.  When
 ``tolerance == 0`` this is an exact float comparison.
 
+Percent/fraction normalization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Gold facts for rates/proportions store values as fractions (e.g.
+``numeric_value = 0.8236``), but real models often report them as percentages
+(e.g. ``"82.4%"`` or a structured value of ``82.4``).  When the gold value
+``G`` satisfies ``0 < G <= 1``, the matcher **also** tries the candidate
+divided by 100 (``N / 100``) so that a model emitting ``82.4`` (percent form)
+is credited against a gold of ``0.8236`` within the stated tolerance.
+
+The ``/100`` normalization is applied **only when ``0 < G <= 1``** (fraction
+range) — it is never applied for counts or other values ``> 1``, which
+prevents false positives such as crediting ``1.35`` against a gold count of
+``135``.  The existing as-is comparison is always tried first; the
+percent-normalized path is an additional fallback.
+
+When a match is made via the ``/100`` path the ``method`` label in
+:class:`FactDetail` includes the suffix ``+percent_normalized`` to make the
+match source traceable (e.g.
+``"numeric_absolute(0.0005)[key_findings+percent_normalized]"``).
+
 **Non-numeric gold facts** (``numeric_value`` is None):
 
 Scans ``key_findings`` text (and ``limitations``) for the claim via normalized
@@ -466,6 +486,19 @@ def _find_predicted_numeric(
     2. Numbers parsed from each string in ``key_findings``.
     3. Numbers parsed from each string in ``limitations``.
 
+    For each candidate value ``N``, two comparisons are attempted:
+
+    - **As-is**: ``score_numeric(N, gold_value, tolerance)``.
+    - **Percent-normalized** (only when ``0 < gold_value <= 1``):
+      ``score_numeric(N / 100, gold_value, tolerance)``.  This handles the
+      common case where the gold fact stores a fraction/rate (e.g. ``0.8236``)
+      but the model reports it as a percentage (e.g. ``82.4`` or ``"82.4%"``).
+      The guard ``0 < gold_value <= 1`` prevents false positives for counts
+      (e.g. gold ``135`` would not match candidate ``1.35``).
+
+    When a match is made via the percent-normalized path the returned source
+    label is suffixed with ``'+percent_normalized'`` for traceability.
+
     Args:
         gold_value: The expected numeric value.
         tolerance: Absolute float tolerance or ``"N%"`` relative string.
@@ -475,26 +508,48 @@ def _find_predicted_numeric(
 
     Returns:
         ``(matched_value, source_label)`` where *source_label* is one of
-        ``'structured_metrics'``, ``'key_findings'``, ``'limitations'``, or
-        ``'not_found'``.
+        ``'structured_metrics'``, ``'key_findings'``, ``'limitations'``,
+        ``'structured_metrics+percent_normalized'``,
+        ``'key_findings+percent_normalized'``,
+        ``'limitations+percent_normalized'``, or ``'not_found'``.
     """
+    # Whether to attempt the /100 normalization (only safe for fraction/rate gold values)
+    try_pct_norm: bool = 0 < gold_value <= 1
+
+    def _matches_candidate(candidate: float) -> str:
+        """Return '' if no match, 'as_is' or 'pct_norm' for the matching form."""
+        if score_numeric(candidate, gold_value, tolerance) == 1.0:
+            return "as_is"
+        if try_pct_norm and score_numeric(candidate / 100.0, gold_value, tolerance) == 1.0:
+            return "pct_norm"
+        return ""
+
     # 1. Scan all numeric values in structured_metrics (value-based, key-agnostic)
     for val in structured_metrics.values():
         if isinstance(val, (int, float)) and not isinstance(val, bool):
-            if score_numeric(float(val), gold_value, tolerance) == 1.0:
+            match_kind = _matches_candidate(float(val))
+            if match_kind == "as_is":
                 return (float(val), "structured_metrics")
+            if match_kind == "pct_norm":
+                return (float(val), "structured_metrics+percent_normalized")
 
     # 2. Parse numbers from key_findings free text
     for finding in key_findings:
         for num in _extract_numbers(finding):
-            if score_numeric(num, gold_value, tolerance) == 1.0:
+            match_kind = _matches_candidate(num)
+            if match_kind == "as_is":
                 return (num, "key_findings")
+            if match_kind == "pct_norm":
+                return (num, "key_findings+percent_normalized")
 
     # 3. Parse numbers from limitations free text
     for lim in limitations:
         for num in _extract_numbers(lim):
-            if score_numeric(num, gold_value, tolerance) == 1.0:
+            match_kind = _matches_candidate(num)
+            if match_kind == "as_is":
                 return (num, "limitations")
+            if match_kind == "pct_norm":
+                return (num, "limitations+percent_normalized")
 
     return (None, "not_found")
 
