@@ -545,13 +545,11 @@ class OpenRouterAdapter:
             "latency_ms": latency_ms,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
+            "cost_usd": cost_usd,
             "model_temperature": self._temperature,
             "provider": provider,
             "pack_id": None,
         }
-        if cost_usd is not None:
-            # Store cost in structured_metrics since output_schema has no cost field.
-            parsed["structured_metrics"]["cost_usd"] = cost_usd
 
         return {
             "task_id": task["task_id"],

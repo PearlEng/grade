@@ -474,8 +474,12 @@ class TestOpenRouterAdapterRun:
         output = self._run_with_mock()
         jsonschema.validate(instance=output, schema=schema)  # raises if invalid
 
-    def test_cost_stored_in_structured_metrics(self) -> None:
-        """If OpenRouter returns a cost in usage, it must appear in structured_metrics."""
+    def test_cost_stored_in_runtime_metadata_not_structured_metrics(self) -> None:
+        """Cost must be in runtime_metadata, not structured_metrics.
+
+        If OpenRouter returns a cost in usage, it must appear in runtime_metadata,
+        NOT in structured_metrics (cost must not pollute the C1 grounding scorer).
+        """
         mock_body = {
             **_MOCK_OR_RESPONSE,
             "usage": {
@@ -486,8 +490,39 @@ class TestOpenRouterAdapterRun:
             },
         }
         output = self._run_with_mock(mock_body=mock_body)
-        assert "cost_usd" in output["structured_metrics"]
-        assert output["structured_metrics"]["cost_usd"] == pytest.approx(0.00042)
+        # cost_usd must be in runtime_metadata
+        assert "cost_usd" in output["runtime_metadata"]
+        assert output["runtime_metadata"]["cost_usd"] == pytest.approx(0.00042)
+        # cost_usd must NOT appear in structured_metrics
+        assert "cost_usd" not in output["structured_metrics"]
+
+    def test_cost_absent_when_provider_does_not_report_it(self) -> None:
+        """When OpenRouter usage has no 'cost' key, runtime_metadata.cost_usd must be None."""
+        # _MOCK_OR_RESPONSE has no 'cost' in usage
+        output = self._run_with_mock()
+        assert output["runtime_metadata"]["cost_usd"] is None
+
+    def test_output_schema_valid_with_cost(self) -> None:
+        """Output with cost_usd in runtime_metadata must still validate against output_schema."""
+        import jsonschema
+
+        schema_path = (
+            Path(__file__).parent.parent.parent / "benchmark" / "schemas" / "output_schema.json"
+        )
+        with schema_path.open() as fh:
+            schema = json.load(fh)
+
+        mock_body = {
+            **_MOCK_OR_RESPONSE,
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+                "cost": "0.00042",
+            },
+        }
+        output = self._run_with_mock(mock_body=mock_body)
+        jsonschema.validate(instance=output, schema=schema)  # must not raise
 
 
 # ---------------------------------------------------------------------------

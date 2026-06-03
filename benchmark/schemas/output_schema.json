@@ -132,6 +132,11 @@
           "description": "Token count of the model's completion, if available.",
           "minimum": 0
         },
+        "cost_usd": {
+          "type": ["number", "null"],
+          "description": "Cost of this API call in US dollars as reported by the provider, if available. Null when the provider does not return cost data (e.g. stub adapter).",
+          "minimum": 0.0
+        },
         "model_temperature": {
           "type": ["number", "null"],
           "description": "Temperature setting used for the model call. Null if the adapter used the provider default.",

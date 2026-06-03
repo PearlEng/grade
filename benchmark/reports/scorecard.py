@@ -310,6 +310,140 @@ def _build_per_pack_table(
     return "\n".join(rows)
 
 
+def _build_cost_speed_section(cost_metrics: dict[str, Any] | None) -> str:
+    """Render the Cost & Speed Markdown section from a ``cost_metrics`` dict.
+
+    When *cost_metrics* is ``None`` or empty (e.g. result produced before this
+    feature was added), a brief "not available" notice is returned so the
+    section is still present and parseable in old reports.
+
+    Cost-efficiency formula
+    ~~~~~~~~~~~~~~~~~~~~~~~
+    When cost data is available:
+
+        cost_efficiency = composite_points_per_dollar
+                        = overall_composite * 100 / total_cost_usd
+
+    This answers "how many composite percentage-points did we buy per US
+    dollar?".  A higher number is better (more accuracy/consistency per cent
+    spent).
+
+    When cost is absent but token counts are available (tokens_available=True),
+    a token-based proxy is used instead:
+
+        token_efficiency = overall_composite * 100 / (total_tokens / 1000)
+
+    This answers "composite points per 1 k tokens" — useful for comparing
+    models when provider pricing is not exposed.
+
+    Both figures are deterministic given the same inputs.
+
+    Args:
+        cost_metrics: The ``cost_metrics`` sub-dict from a result object, or
+            ``None`` if the result predates cost tracking.
+
+    Returns:
+        Multi-line Markdown string describing cost, tokens, latency, and
+        efficiency.  Never raises.
+    """
+    if not cost_metrics:
+        return "_Cost & speed data not available for this result._\n"
+
+    lines: list[str] = []
+
+    # --- Cost ---
+    cost_available: bool = cost_metrics.get("cost_available", False)
+    total_cost: float | None = cost_metrics.get("total_cost_usd")
+    cost_partial: bool = cost_metrics.get("cost_partial", False)
+
+    if cost_available and total_cost is not None:
+        cost_str = f"${total_cost:.5f}"
+        if cost_partial:
+            cost_str += " _(partial — some calls did not report cost)_"
+        lines.append(f"**Total API Cost:** {cost_str}")
+    else:
+        lines.append("**Total API Cost:** not reported")
+
+    # --- Tokens ---
+    tokens_available: bool = cost_metrics.get("tokens_available", False)
+    total_tokens: int = cost_metrics.get("total_tokens", 0)
+    prompt_tokens: int = cost_metrics.get("total_prompt_tokens", 0)
+    completion_tokens: int = cost_metrics.get("total_completion_tokens", 0)
+
+    if tokens_available:
+        lines.append(
+            f"**Total Tokens:** {total_tokens:,}"
+            f"  _(prompt: {prompt_tokens:,}, completion: {completion_tokens:,})_"
+        )
+    else:
+        lines.append("**Total Tokens:** not reported")
+
+    # --- Latency ---
+    mean_lat: float | None = cost_metrics.get("mean_latency_ms")
+    p50_lat: float | None = cost_metrics.get("p50_latency_ms")
+    max_lat: float | None = cost_metrics.get("max_latency_ms")
+
+    if mean_lat is not None:
+        lat_parts = [f"mean {mean_lat:.0f} ms"]
+        if p50_lat is not None:
+            lat_parts.append(f"p50 {p50_lat:.0f} ms")
+        if max_lat is not None:
+            lat_parts.append(f"max {max_lat:.0f} ms")
+        lines.append(f"**Latency:** {', '.join(lat_parts)}")
+    else:
+        lines.append("**Latency:** not available")
+
+    return "\n".join(lines) + "\n"
+
+
+def _build_cost_efficiency_note(
+    result: dict[str, Any],
+) -> str:
+    """Render a cost-efficiency figure for the Cost & Speed section.
+
+    The figure is appended after the main cost/speed table rows.  It is
+    separated so callers can include/exclude it independently.
+
+    Formula (see :func:`_build_cost_speed_section` for rationale):
+
+    - **cost_efficiency** (when cost is available):
+      ``overall_composite × 100 / total_cost_usd``
+    - **token_efficiency** (when tokens available but cost absent):
+      ``overall_composite × 100 / (total_tokens / 1000)``
+
+    Args:
+        result: Full result dict containing ``overall_composite`` and
+            ``cost_metrics``.
+
+    Returns:
+        One-line Markdown string with the efficiency figure, or empty string
+        if no efficiency figure can be computed.
+    """
+    composite: float | None = result.get("overall_composite")
+    cost_metrics: dict[str, Any] | None = result.get("cost_metrics")
+
+    if composite is None or not cost_metrics:
+        return ""
+
+    cost_available: bool = cost_metrics.get("cost_available", False)
+    total_cost: float | None = cost_metrics.get("total_cost_usd")
+    tokens_available: bool = cost_metrics.get("tokens_available", False)
+    total_tokens: int = cost_metrics.get("total_tokens", 0)
+
+    if cost_available and total_cost and total_cost > 0:
+        efficiency = (composite * 100) / total_cost
+        return f"\n**Cost-Efficiency:** {efficiency:.1f} composite pts / US$\n"
+
+    if tokens_available and total_tokens > 0:
+        efficiency_per_ktok = (composite * 100) / (total_tokens / 1000)
+        return (
+            f"\n**Token-Efficiency:** {efficiency_per_ktok:.2f} composite pts / 1k tokens"
+            f"  _(cost not reported; token proxy used)_\n"
+        )
+
+    return ""
+
+
 def _build_per_task_table(
     per_task_scores: list[dict[str, Any]],
     baseline_tasks: list[dict[str, Any]] | None = None,
@@ -422,6 +556,9 @@ def render_markdown(
             f"Positive values (pp) indicate improvement.\n"
         )
 
+    cost_speed_section = _build_cost_speed_section(result.get("cost_metrics"))
+    cost_speed_section += _build_cost_efficiency_note(result)
+
     template_text = _TEMPLATE_PATH.read_text(encoding="utf-8")
     return template_text.format_map(
         {
@@ -443,6 +580,7 @@ def render_markdown(
             "per_track_table": per_track_table,
             "per_pack_table": per_pack_table,
             "per_task_table": per_task_table,
+            "cost_speed_section": cost_speed_section,
             "diff_section": diff_section,
         }
     )
