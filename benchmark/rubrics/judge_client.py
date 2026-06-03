@@ -47,6 +47,17 @@ from typing import Any
 #: Number of judge calls permitted per task invocation (one per dimension).
 MAX_JUDGE_CALLS_PER_TASK: int = 6
 
+#: Task fields that contain raw fixture data or internal dispatcher keys.
+#: These are never relevant to the judge's evaluation and are explicitly
+#: excluded from the judge prompt to prevent prompt-size blowout when a
+#: 4000-row CSV is inlined by the dispatcher.
+_TASK_FIELDS_EXCLUDED_FROM_JUDGE: frozenset[str] = frozenset(
+    {
+        "fixtures",  # {filename: full_csv_text} — can be megabytes
+        "pack_id",  # internal dispatcher routing key, not a rubric concept
+    }
+)
+
 #: Fixed random seed — kept for documentation / future use; OpenRouter does
 #: not expose a ``seed`` parameter on all models, so reproducibility relies on
 #: ``temperature=0`` instead.
@@ -64,21 +75,40 @@ def _build_judge_prompt(
 ) -> str:
     """Construct a judge evaluation prompt for a single rubric dimension.
 
+    The prompt is built exclusively from the task fields that are relevant to
+    rubric evaluation: ``task_id``, ``title``, ``user_prompt``, ``gold_facts``,
+    ``gold_insights``, ``required_limitations``, ``forbidden_claims``, and
+    ``reference_answer_outline``.
+
+    Raw fixture data (``fixtures``, ``pack_id``) is **always excluded** —
+    grounding accuracy is the job of the deterministic C1 scorer, not the
+    judge.  Excluding bulk data keeps the prompt bounded regardless of fixture
+    size (e.g. a 4 000-row attendance.csv would otherwise balloon the prompt
+    to tens of thousands of tokens and cause the OpenRouter call to hang).
+
     Args:
         dimension: The rubric dimension name (e.g. ``"grounding_accuracy"``).
         guidance: Task-specific scorer guidance, or empty string.
-        task: The full task definition dict.
+        task: The full task definition dict.  Fields listed in
+            :data:`_TASK_FIELDS_EXCLUDED_FROM_JUDGE` are ignored.
         model_output: The normalized model output dict.
 
     Returns:
         A fully formatted prompt string ready to send to the judge model.
     """
+    # Strip bulk/internal fields before touching any task values so the prompt
+    # size is bounded regardless of how large the inlined fixture data is.
+    # This guard is intentionally placed here (not only at the call-site) so
+    # the exclusion is enforced even if new callers pass a raw task dict.
+    task = {k: v for k, v in task.items() if k not in _TASK_FIELDS_EXCLUDED_FROM_JUDGE}
+
     gold_facts_text = json.dumps(task.get("gold_facts", []), indent=2)
     gold_insights_text = "\n".join(f"- {ins}" for ins in task.get("gold_insights", []))
     required_limitations_text = "\n".join(
         f"- {lim}" for lim in task.get("required_limitations", [])
     )
     forbidden_claims_text = "\n".join(f"- {claim}" for claim in task.get("forbidden_claims", []))
+    reference_outline = task.get("reference_answer_outline", "")
 
     # Build a readable representation of the model's response.
     if model_output.get("raw_response_text"):
@@ -118,6 +148,14 @@ def _build_judge_prompt(
         "Forbidden claims:",
         forbidden_claims_text,
         "",
+    ]
+    if reference_outline:
+        lines += [
+            "Reference answer outline:",
+            reference_outline,
+            "",
+        ]
+    lines += [
         "## Model response",
         response_text,
         "",
