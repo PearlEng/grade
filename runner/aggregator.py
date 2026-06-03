@@ -11,11 +11,13 @@ The scorecard includes:
 - ``per_pack_scores`` — dimension averages grouped by pack ID.
 - ``overall_scores`` — global dimension averages across all tasks.
 - ``overall_composite`` — global weighted composite.
+- ``cost_metrics`` — aggregate API cost, token counts, and latency (when available).
 
 Public API
 ----------
 - :func:`aggregate` — build a full result dict from task run results.
 - :func:`mean_scores` — average a list of dimension score dicts.
+- :func:`aggregate_cost_metrics` — collect cost/token/latency from task outputs.
 """
 
 from __future__ import annotations
@@ -46,6 +48,172 @@ TRACK_NAMES: dict[int, str] = {
     4: "Equity & Subgroup Interpretation",
     5: "Program Effectiveness & Research Reasoning",
 }
+
+
+def aggregate_cost_metrics(
+    task_results: list[TaskRunResult],
+) -> dict[str, Any]:
+    """Collect and aggregate API cost, token counts, and latency from task outputs.
+
+    Iterates over every per-run output stored in each :class:`TaskRunResult` and
+    reads ``cost_usd``, ``prompt_tokens``, ``completion_tokens``, and
+    ``latency_ms`` from each output's ``runtime_metadata``.
+
+    Cost handling
+    ~~~~~~~~~~~~~
+    Cost data is genuinely absent for some adapters (e.g. the stub) and for
+    providers that do not return a ``cost`` field.  To distinguish "zero cost"
+    from "cost not reported", this function tracks whether *any* output in the
+    batch had a non-None ``cost_usd``:
+
+    - If **no** output reported cost → ``total_cost_usd`` is ``None`` and
+      ``cost_available`` is ``False``.
+    - If **some but not all** outputs reported cost → ``total_cost_usd`` is the
+      sum of the available values, ``cost_available`` is ``True``, and
+      ``cost_partial`` is ``True`` (a warning flag).
+    - If **all** outputs reported cost → ``cost_available`` is ``True``,
+      ``cost_partial`` is ``False``.
+
+    Token handling
+    ~~~~~~~~~~~~~~
+    ``None`` token counts (stub adapter, providers without usage reporting) are
+    treated as 0 for the purpose of summation and excluded from the
+    ``tokens_available`` flag.
+
+    Latency handling
+    ~~~~~~~~~~~~~~~~
+    ``latency_ms`` is always present in the schema (required field, ``minimum: 0``),
+    so ``mean_latency_ms`` is always computed.  Stub latency values are included.
+
+    Args:
+        task_results: List of :class:`~runner.dispatcher.TaskRunResult` objects.
+
+    Returns:
+        A dict with the following keys:
+
+        - ``total_cost_usd`` (``float | None``): Summed cost in USD, or ``None``
+          if no cost data was available.
+        - ``cost_available`` (``bool``): ``True`` if at least one output had a
+          non-None ``cost_usd``.
+        - ``cost_partial`` (``bool``): ``True`` if cost data was missing for at
+          least one output in a batch where other outputs *did* have cost data.
+        - ``total_prompt_tokens`` (``int``): Summed prompt token count (0 when
+          tokens are not reported).
+        - ``total_completion_tokens`` (``int``): Summed completion token count.
+        - ``total_tokens`` (``int``): ``total_prompt_tokens + total_completion_tokens``.
+        - ``tokens_available`` (``bool``): ``True`` if at least one output reported
+          non-None token counts.
+        - ``mean_latency_ms`` (``float | None``): Mean wall-clock latency in ms
+          across all outputs.  ``None`` only if there are no outputs at all.
+        - ``p50_latency_ms`` (``float | None``): Median latency.  ``None`` if no
+          outputs.
+        - ``max_latency_ms`` (``float | None``): Maximum latency.  ``None`` if no
+          outputs.
+        - ``per_task_cost`` (``dict[str, Any]``): Mapping of ``task_id`` →
+          ``{"cost_usd": float | None, "prompt_tokens": int, "completion_tokens": int,
+          "total_tokens": int, "mean_latency_ms": float | None}``.
+
+    Example::
+
+        metrics = aggregate_cost_metrics(task_results)
+        if metrics["cost_available"]:
+            print(f"Total cost: ${metrics['total_cost_usd']:.5f}")
+        else:
+            print("Cost not reported by adapter/provider.")
+    """
+    all_latencies: list[float] = []
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    cost_values: list[float] = []
+    cost_missing_count: int = 0
+    tokens_available: bool = False
+
+    per_task_cost: dict[str, Any] = {}
+
+    for tr in task_results:
+        task_cost_values: list[float] = []
+        task_prompt_tokens: int = 0
+        task_completion_tokens: int = 0
+        task_latencies: list[float] = []
+        task_cost_missing: int = 0
+
+        for output in tr.outputs:
+            meta: dict[str, Any] = output.get("runtime_metadata", {})
+
+            # Latency — always present per schema.
+            lat = meta.get("latency_ms")
+            if lat is not None:
+                all_latencies.append(float(lat))
+                task_latencies.append(float(lat))
+
+            # Tokens — may be None.
+            pt = meta.get("prompt_tokens")
+            ct = meta.get("completion_tokens")
+            if pt is not None:
+                total_prompt_tokens += int(pt)
+                task_prompt_tokens += int(pt)
+                tokens_available = True
+            if ct is not None:
+                total_completion_tokens += int(ct)
+                task_completion_tokens += int(ct)
+                tokens_available = True
+
+            # Cost — may be None.
+            cost = meta.get("cost_usd")
+            if cost is not None:
+                cost_values.append(float(cost))
+                task_cost_values.append(float(cost))
+            else:
+                cost_missing_count += 1
+                task_cost_missing += 1
+
+        task_total_cost: float | None = sum(task_cost_values) if task_cost_values else None
+        task_mean_latency: float | None = (
+            sum(task_latencies) / len(task_latencies) if task_latencies else None
+        )
+        per_task_cost[tr.task_id] = {
+            "cost_usd": task_total_cost,
+            "prompt_tokens": task_prompt_tokens,
+            "completion_tokens": task_completion_tokens,
+            "total_tokens": task_prompt_tokens + task_completion_tokens,
+            "mean_latency_ms": task_mean_latency,
+        }
+
+    # Global totals.
+    cost_available: bool = len(cost_values) > 0
+    total_cost_usd: float | None = sum(cost_values) if cost_available else None
+    cost_partial: bool = cost_available and cost_missing_count > 0
+
+    mean_latency_ms: float | None = (
+        sum(all_latencies) / len(all_latencies) if all_latencies else None
+    )
+
+    # Median (p50) — sort and pick middle element.
+    p50_latency_ms: float | None = None
+    max_latency_ms: float | None = None
+    if all_latencies:
+        sorted_lats = sorted(all_latencies)
+        n = len(sorted_lats)
+        mid = n // 2
+        if n % 2:
+            p50_latency_ms = sorted_lats[mid]
+        else:
+            p50_latency_ms = (sorted_lats[mid - 1] + sorted_lats[mid]) / 2
+        max_latency_ms = sorted_lats[-1]
+
+    return {
+        "total_cost_usd": total_cost_usd,
+        "cost_available": cost_available,
+        "cost_partial": cost_partial,
+        "total_prompt_tokens": total_prompt_tokens,
+        "total_completion_tokens": total_completion_tokens,
+        "total_tokens": total_prompt_tokens + total_completion_tokens,
+        "tokens_available": tokens_available,
+        "mean_latency_ms": mean_latency_ms,
+        "p50_latency_ms": p50_latency_ms,
+        "max_latency_ms": max_latency_ms,
+        "per_task_cost": per_task_cost,
+    }
 
 
 def mean_scores(score_list: list[DimensionScores]) -> DimensionScores:
@@ -178,6 +346,8 @@ def aggregate(
     all_scores = [tr.scores for tr in task_results]
     overall = mean_scores(all_scores)
 
+    cost_metrics = aggregate_cost_metrics(task_results)
+
     return {
         "result_id": rid,
         "model_id": model_id,
@@ -190,4 +360,5 @@ def aggregate(
         "per_track_scores": per_track_scores,
         "per_pack_scores": per_pack_scores,
         "per_task_scores": per_task_scores,
+        "cost_metrics": cost_metrics,
     }

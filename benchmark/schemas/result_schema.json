@@ -86,6 +86,10 @@
         "$ref": "#/$defs/TaskResult"
       },
       "minItems": 1
+    },
+    "cost_metrics": {
+      "$ref": "#/$defs/CostMetrics",
+      "description": "Optional aggregate API cost, token counts, and latency statistics for the full benchmark run. Absent when no adapter reported any runtime metadata."
     }
   },
   "$defs": {
@@ -196,6 +200,104 @@
           "description": "Pack-level composite score.",
           "minimum": 0.0,
           "maximum": 1.0
+        }
+      }
+    },
+    "CostMetrics": {
+      "type": "object",
+      "description": "Aggregate API cost, token counts, and latency for the benchmark run. Fields are null/false when the adapter or provider does not report them.",
+      "required": [
+        "cost_available",
+        "cost_partial",
+        "total_prompt_tokens",
+        "total_completion_tokens",
+        "total_tokens",
+        "tokens_available"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total_cost_usd": {
+          "type": ["number", "null"],
+          "description": "Sum of per-call cost_usd across all runs and tasks. Null when no call reported cost (cost_available=false).",
+          "minimum": 0.0
+        },
+        "cost_available": {
+          "type": "boolean",
+          "description": "True if at least one model call in this run reported a non-null cost_usd."
+        },
+        "cost_partial": {
+          "type": "boolean",
+          "description": "True when cost data was present for some calls but missing for others (mixed adapter/provider situation)."
+        },
+        "total_prompt_tokens": {
+          "type": "integer",
+          "description": "Sum of prompt_tokens across all runs and tasks. 0 when tokens are not reported.",
+          "minimum": 0
+        },
+        "total_completion_tokens": {
+          "type": "integer",
+          "description": "Sum of completion_tokens across all runs and tasks. 0 when tokens are not reported.",
+          "minimum": 0
+        },
+        "total_tokens": {
+          "type": "integer",
+          "description": "total_prompt_tokens + total_completion_tokens.",
+          "minimum": 0
+        },
+        "tokens_available": {
+          "type": "boolean",
+          "description": "True if at least one model call reported non-null token counts."
+        },
+        "mean_latency_ms": {
+          "type": ["number", "null"],
+          "description": "Mean wall-clock latency in milliseconds across all model calls. Null if no outputs.",
+          "minimum": 0.0
+        },
+        "p50_latency_ms": {
+          "type": ["number", "null"],
+          "description": "Median (p50) latency in milliseconds. Null if no outputs.",
+          "minimum": 0.0
+        },
+        "max_latency_ms": {
+          "type": ["number", "null"],
+          "description": "Maximum latency in milliseconds across all model calls. Null if no outputs.",
+          "minimum": 0.0
+        },
+        "per_task_cost": {
+          "type": "object",
+          "description": "Per-task breakdown: task_id → cost/token/latency dict.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+            "additionalProperties": false,
+            "properties": {
+              "cost_usd": {
+                "type": ["number", "null"],
+                "description": "Total cost for this task across all runs. Null when not reported.",
+                "minimum": 0.0
+              },
+              "prompt_tokens": {
+                "type": "integer",
+                "description": "Total prompt tokens for this task across all runs.",
+                "minimum": 0
+              },
+              "completion_tokens": {
+                "type": "integer",
+                "description": "Total completion tokens for this task across all runs.",
+                "minimum": 0
+              },
+              "total_tokens": {
+                "type": "integer",
+                "description": "prompt_tokens + completion_tokens for this task.",
+                "minimum": 0
+              },
+              "mean_latency_ms": {
+                "type": ["number", "null"],
+                "description": "Mean latency in ms for this task across all runs. Null if no runs.",
+                "minimum": 0.0
+              }
+            }
+          }
         }
       }
     },
