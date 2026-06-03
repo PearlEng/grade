@@ -391,9 +391,14 @@ class TestScoreFact:
         assert detail.matched is True
 
     def test_numeric_outside_tolerance(self) -> None:
-        """Numeric fact outside tolerance should score 0.0."""
+        """Numeric fact clearly outside the authored tolerance and the 1pp floor scores 0.0.
+
+        The leniency floor (RATE_TOLERANCE_FLOOR = 0.01) means values within 1 percentage
+        point of the gold are now credited.  This test uses a predicted value that is more
+        than 1pp away from the gold (0.70 vs 0.8092, |diff| = 0.1092 >> 0.01).
+        """
         fact = self._make_fact(numeric_value=0.8092, tolerance=0.0005)
-        detail = score_fact(fact, {"attendance_rate": 0.80}, [])
+        detail = score_fact(fact, {"attendance_rate": 0.70}, [])
         assert detail.score == 0.0
         assert detail.matched is False
 
@@ -947,3 +952,121 @@ class TestPercentFractionNormalization:
         assert result.facts_matched == 1
         assert len(result.details) == 1
         assert "percent_normalized" in result.details[0].method
+
+
+# ===========================================================================
+# Leniency floor tests (prose-first grading)
+# ===========================================================================
+
+
+class TestLeniencyFloor:
+    """Tests for the leniency-floor constants added for prose-first grading.
+
+    RATE_TOLERANCE_FLOOR (0.01) ensures rates within ~1 percentage point are
+    credited; COUNT_RELATIVE_FLOOR (0.02) ensures counts within ~2% are credited.
+    Both floors are only *minimums* — clearly wrong answers are still rejected.
+    """
+
+    # ------------------------------------------------------------------
+    # Rate floor: "about 82%" / "82%" credits gold 0.8236
+    # ------------------------------------------------------------------
+
+    def test_about_82pct_prose_credits_gold_0_8236(self) -> None:
+        """'about 82%' in key_findings credits gold 0.8236 via percent-norm + 1pp floor.
+
+        82.0 / 100 = 0.82; |0.82 - 0.8236| = 0.0036 <= RATE_TOLERANCE_FLOOR (0.01).
+        """
+        fact = GoldFact("F4", "attendance rate ~82%", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {}, ["The attendance rate was about 82% this quarter."])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+
+    def test_82pct_string_credits_gold_0_8236(self) -> None:
+        """'82%' in key_findings credits gold 0.8236 via percent-norm + 1pp floor.
+
+        82.0 / 100 = 0.82; |0.82 - 0.8236| = 0.0036 <= 0.01 floor.
+        """
+        fact = GoldFact("F4", "attendance rate", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {}, ["Attendance was 82%."])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+
+    def test_fractional_0_82_credits_gold_0_8236_via_floor(self) -> None:
+        """0.82 as-is credits gold 0.8236 within the 1pp floor.
+
+        |0.82 - 0.8236| = 0.0036 <= RATE_TOLERANCE_FLOOR (0.01).
+        """
+        fact = GoldFact("F4", "attendance rate", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {"rate": 0.82}, [])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+
+    def test_rate_floor_still_rejects_70pct_for_gold_0_8236(self) -> None:
+        """70% (0.70) must NOT credit gold 0.8236 — clearly wrong.
+
+        |0.70 - 0.8236| = 0.1236 >> RATE_TOLERANCE_FLOOR (0.01).
+        """
+        fact = GoldFact("F4", "attendance rate", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {}, ["Attendance was about 70%."])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    # ------------------------------------------------------------------
+    # Count floor: 133 credits gold 135; 130 does NOT; 200 does NOT
+    # ------------------------------------------------------------------
+
+    def test_count_133_credits_gold_135_within_2pct(self) -> None:
+        """133 credits gold 135 because |133 - 135| = 2 <= 0.02 * 135 = 2.7."""
+        fact = GoldFact("F1", "approximately 135 students", ["students.csv"], 135.0, 0.0)
+        detail = score_fact(fact, {}, ["There are around 133 students in the program."])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+
+    def test_count_130_does_not_credit_gold_135(self) -> None:
+        """130 does NOT credit gold 135 because |130 - 135| = 5 > 0.02 * 135 = 2.7."""
+        fact = GoldFact("F1", "135 students enrolled", ["students.csv"], 135.0, 0.0)
+        detail = score_fact(fact, {}, ["There are 130 students enrolled."])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    def test_count_200_does_not_credit_gold_135(self) -> None:
+        """200 does NOT credit gold 135 — clearly wrong.
+
+        |200 - 135| = 65 >> 0.02 * 135 = 2.7.
+        """
+        fact = GoldFact("F1", "135 students enrolled", ["students.csv"], 135.0, 0.0)
+        detail = score_fact(fact, {"enrollment": 200}, [])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    # ------------------------------------------------------------------
+    # False-positive guard: a true rate of 0.10 is NOT credited by 0.20
+    # ------------------------------------------------------------------
+
+    def test_rate_0_10_not_credited_by_0_20(self) -> None:
+        """0.20 must NOT credit a gold rate of 0.10 — the floor is 1pp, not 10pp.
+
+        |0.20 - 0.10| = 0.10 >> RATE_TOLERANCE_FLOOR (0.01).
+        """
+        fact = GoldFact("F7", "10% dropout rate", ["dropout.csv"], 0.10, 0.001)
+        detail = score_fact(fact, {"dropout_rate": 0.20}, [])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    def test_rate_0_10_not_credited_by_20pct_text(self) -> None:
+        """'20%' in prose must NOT credit a gold rate of 0.10 (0.20 is 10pp away)."""
+        fact = GoldFact("F7", "10% dropout rate", ["dropout.csv"], 0.10, 0.001)
+        detail = score_fact(fact, {}, ["The dropout rate is approximately 20%."])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    # ------------------------------------------------------------------
+    # Floor constants are exported in __all__
+    # ------------------------------------------------------------------
+
+    def test_constants_exported(self) -> None:
+        """RATE_TOLERANCE_FLOOR and COUNT_RELATIVE_FLOOR must be importable from the module."""
+        from benchmark.rubrics.fact_scoring import COUNT_RELATIVE_FLOOR, RATE_TOLERANCE_FLOOR
+
+        assert RATE_TOLERANCE_FLOOR == pytest.approx(0.01)
+        assert COUNT_RELATIVE_FLOOR == pytest.approx(0.02)

@@ -259,6 +259,76 @@ class TestParseResponse:
         result = _parse_response("", _VALID_TASK)
         assert result["key_findings"] == []
 
+    def test_prose_response_no_headers_populates_key_findings(self) -> None:
+        """A natural-prose response with no section headers must still populate key_findings.
+
+        This is the core prose-first requirement: when the model writes flowing
+        paragraphs without any ``## Key Findings`` header, the parser splits the
+        text into sentences and uses them as key_findings so the deterministic
+        scorer has content to evaluate.
+        """
+        prose = (
+            "Based on the data, there are 42 active students enrolled in the program. "
+            "The cohort is relatively small, which allows for personalized instruction. "
+            "Data was drawn from students.csv using the active_status column.\n\n"
+            "One important caveat is that the count reflects a snapshot at end of term "
+            "and may not include late enrolments."
+        )
+        result = _parse_response(prose, _VALID_TASK)
+        # key_findings must be populated from prose (no headers present)
+        assert len(result["key_findings"]) >= 1
+        # At least one finding should contain a substantive insight
+        combined = " ".join(result["key_findings"]).lower()
+        assert "42" in combined or "student" in combined or "active" in combined
+        # structured_metrics is empty (model didn't emit structured section)
+        assert result["structured_metrics"] == {}
+
+    def test_prose_response_schema_valid(self) -> None:
+        """A natural-prose response (no structured sections) must parse to a schema-valid output.
+
+        Tests the full adapter pipeline: _parse_response → output dict →
+        validate_output.  Verifies that ``key_findings`` is populated from prose,
+        ``structured_metrics`` is an empty dict (permitted by the schema), and
+        ``limitations`` is an empty list (also permitted).
+        """
+        from benchmark.schemas import validate_output
+
+        prose = (
+            "The program currently serves 42 active students across three schools. "
+            "Attendance has been strong this quarter, with most sessions running at "
+            "full capacity.  The data comes from students.csv and sessions.csv."
+        )
+
+        parsed = _parse_response(prose, _VALID_TASK)
+
+        # Build a full output dict around the parsed result.
+        output: dict[str, Any] = {
+            "task_id": _VALID_TASK["task_id"],
+            "model_id": "anthropic/claude-sonnet-4-5",
+            "run_index": 0,
+            "structured_metrics": parsed["structured_metrics"],
+            "key_findings": parsed["key_findings"],
+            "limitations": parsed["limitations"],
+            "evidence_citations": parsed["evidence_citations"],
+            "runtime_metadata": {
+                "adapter_version": "0.1.0",
+                "timestamp_utc": "2026-06-01T12:00:00Z",
+                "latency_ms": 55.0,
+                "prompt_tokens": 120,
+                "completion_tokens": 60,
+                "model_temperature": 0.0,
+                "provider": "anthropic",
+                "pack_id": None,
+            },
+        }
+
+        # Must not raise
+        validate_output(output)
+        # key_findings populated from prose
+        assert len(output["key_findings"]) >= 1
+        # structured_metrics may be empty — schema allows {}
+        assert isinstance(output["structured_metrics"], dict)
+
 
 # ---------------------------------------------------------------------------
 # OpenRouterAdapter.run tests (mocked HTTP)

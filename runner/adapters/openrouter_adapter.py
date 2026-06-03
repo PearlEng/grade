@@ -113,8 +113,15 @@ def _build_prompt(task: dict[str, Any]) -> str:
 
     Includes the task's ``user_prompt``, the full contents of every fixture
     file referenced by ``allowed_inputs`` (embedded verbatim under clearly
-    delimited file headers), and a structured-output instruction so the model
-    returns a response that the adapter can parse.
+    delimited file headers), and a prose-first instruction that encourages the
+    model to write a clear, natural analysis rather than forcing rigid
+    structured output.
+
+    The model is asked to write as a knowledgeable program analyst would —
+    natural prose with supporting numbers — and structured sections are offered
+    as *optional* scaffolding rather than hard requirements.  The response
+    parser can extract key findings from any prose response, so structural
+    compliance is not required for a high score.
 
     When the task dict contains a ``fixtures`` key (a ``{filename: contents}``
     mapping populated by the dispatcher), each file's full contents are
@@ -164,20 +171,20 @@ def _build_prompt(task: dict[str, Any]) -> str:
 
     lines += [
         "---",
-        "Please structure your response as follows:",
+        "Please write a clear, natural analysis as a knowledgeable program analyst would.",
+        "Use plain prose — complete sentences and paragraphs — to explain what the data",
+        "shows.  Embed specific numbers and rates directly in your narrative wherever they",
+        "support your points.",
         "",
-        "## Key Findings",
-        "List your main analytical conclusions as bullet points.",
+        "You may optionally use the section headings below as a loose guide, but you are",
+        "not required to follow them rigidly.  What matters is that your response is",
+        "accurate, grounded in the data, and easy for a non-technical reader to follow.",
         "",
-        "## Limitations",
-        "List any caveats, uncertainties, or data limitations.",
-        "",
-        "## Evidence Citations",
-        "List any explicit references to source data (file names, columns, etc.).",
-        "",
-        "## Structured Metrics",
-        "If the task involves specific numeric or categorical values, list them as:",
-        "metric_name: value",
+        "Suggested structure (optional):",
+        "  - A short summary of the main findings, written as prose.",
+        "  - Any important caveats or limitations of the data.",
+        "  - References to the specific files or columns that support your conclusions.",
+        "  - If it is helpful, a brief list of key numeric values (e.g. rates, counts).",
     ]
     return "\n".join(lines)
 
@@ -185,12 +192,30 @@ def _build_prompt(task: dict[str, Any]) -> str:
 def _parse_response(raw_text: str, task: dict[str, Any]) -> dict[str, Any]:
     """Parse the model's raw response text into structured output fields.
 
-    Extracts key findings, limitations, evidence citations, and structured
-    metrics from the model's response using section-based parsing.
+    Designed for prose-first responses: the parser can extract ``key_findings``
+    from plain paragraphs even when the model emits no section headers at all.
+    Structured sections (``## Key Findings``, ``## Limitations``, etc.) are
+    parsed when present but are not required.
+
+    Parsing strategy
+    ~~~~~~~~~~~~~~~~
+    1. Section detection: split on ``## Heading`` or ``**Heading**`` markers.
+    2. If recognised section headers are found, extract their content.
+    3. **Prose fallback for key_findings**: if no findings were extracted via
+       sections, split the response into paragraphs/sentences and use every
+       substantive block (>= 10 characters) as a finding.  This ensures that a
+       model that writes flowing prose without any ``## Key Findings`` header
+       still produces a non-empty ``key_findings`` list for the deterministic
+       scorer to evaluate.
+    4. ``structured_metrics``: extracted only from an explicit
+       ``## Structured Metrics`` / ``## Metrics`` section (best-effort).  An
+       empty dict ``{}`` is a valid value per ``output_schema.json``.
+    5. ``limitations``: extracted from the explicit section.  Falls back to an
+       empty list (schema permits ``minItems: 0``).
 
     Args:
         raw_text: Verbatim text returned by the model.
-        task: Task definition dict (used as fallback for ``task_id``).
+        task: Task definition dict (unused currently; reserved for future use).
 
     Returns:
         A dict with keys ``key_findings``, ``limitations``,
@@ -231,7 +256,7 @@ def _parse_response(raw_text: str, task: dict[str, Any]) -> dict[str, Any]:
         return items
 
     # Parse Key Findings section.
-    for header in ("key findings", "findings", "main findings", "key finding"):
+    for header in ("key findings", "findings", "main findings", "key finding", "summary"):
         if header in sections:
             key_findings = _extract_bullets(sections[header])
             break
@@ -243,7 +268,14 @@ def _parse_response(raw_text: str, task: dict[str, Any]) -> dict[str, Any]:
             break
 
     # Parse Evidence Citations section.
-    for header in ("evidence citations", "citations", "evidence", "sources"):
+    for header in (
+        "evidence citations",
+        "citations",
+        "evidence",
+        "sources",
+        "references",
+        "data sources",
+    ):
         if header in sections:
             for line in _extract_bullets(sections[header]):
                 evidence_citations.append(
@@ -256,11 +288,19 @@ def _parse_response(raw_text: str, task: dict[str, Any]) -> dict[str, Any]:
                 )
             break
 
-    # Parse Structured Metrics section.
-    for header in ("structured metrics", "metrics", "structured metric"):
+    # Parse Structured Metrics section (best-effort; empty dict is valid).
+    for header in (
+        "structured metrics",
+        "metrics",
+        "structured metric",
+        "key numeric values",
+        "numeric values",
+    ):
         if header in sections:
             for line in sections[header].splitlines():
                 line = line.strip()
+                # Strip bullet markers before key:value parsing.
+                line = re.sub(r"^[-*•·]\s*", "", line)
                 if ":" in line:
                     key, _, val = line.partition(":")
                     key = key.strip().lower().replace(" ", "_")
@@ -276,12 +316,26 @@ def _parse_response(raw_text: str, task: dict[str, Any]) -> dict[str, Any]:
                                 structured_metrics[key] = val
             break
 
-    # Fallback: if no sections were found, treat entire response as one finding.
+    # ------------------------------------------------------------------
+    # Prose fallback for key_findings
+    #
+    # When the model writes flowing prose without structured headers, split
+    # the response into paragraphs (double-newline separated) and then into
+    # individual sentences so the deterministic scorer has text to scan.
+    # This is the core change for prose-first support: a clean prose response
+    # with no section headers will still produce a populated key_findings list.
+    # ------------------------------------------------------------------
     if not key_findings and raw_text.strip():
-        # Use the first non-empty line / paragraph as a single finding.
-        first_para = next((p.strip() for p in raw_text.split("\n\n") if p.strip()), "")
-        if len(first_para) >= 5:
-            key_findings = [first_para[:500]]
+        paragraphs = [p.strip() for p in raw_text.split("\n\n") if p.strip()]
+        for para in paragraphs:
+            # Split paragraph into sentences on ". ", "! ", or "? " boundaries.
+            sentences = re.split(r"(?<=[.!?])\s+", para)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if len(sentence) >= 10:
+                    key_findings.append(sentence)
+        # Hard cap to keep the list manageable.
+        key_findings = key_findings[:50]
 
     return {
         "key_findings": key_findings,
