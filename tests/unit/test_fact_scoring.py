@@ -832,3 +832,118 @@ class TestIntegrationRealTaskShape:
         result = score_facts(self._GOLD_FACTS, structured_metrics, [])
         assert result.grounding_accuracy == pytest.approx(0.0)
         assert result.facts_matched == 0
+
+
+# ===========================================================================
+# Percent/fraction normalization  (C1 fix)
+# ===========================================================================
+
+
+class TestPercentFractionNormalization:
+    """Tests for the percent↔fraction normalization added in C1 fact scoring.
+
+    Gold facts store rates as fractions (e.g. numeric_value=0.8236) but real
+    models often emit them as percentages (e.g. "82.4%" or a structured value
+    of 82.4).  When the gold value G satisfies 0 < G <= 1 the matcher divides
+    the candidate by 100 and checks again, so 82.4 / 100 = 0.824 ≈ 0.8236.
+    The /100 path is NOT applied when G > 1 (counts etc.) to avoid false
+    positives.
+    """
+
+    # ------------------------------------------------------------------
+    # Positive: percent form in structured_metrics
+    # ------------------------------------------------------------------
+
+    def test_structured_metrics_percent_value_credited(self) -> None:
+        """Gold=0.8236, tol=0.0005 is credited when structured_metrics has 82.4.
+
+        82.4 / 100 = 0.824; |0.824 - 0.8236| = 0.0004 <= 0.0005.
+        """
+        fact = GoldFact("F4", "attendance rate ~82.4%", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {"attendance_rate": 82.4}, [])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+        assert "percent_normalized" in detail.method
+
+    # ------------------------------------------------------------------
+    # Positive: percent form in key_findings text ("82.4%")
+    # ------------------------------------------------------------------
+
+    def test_key_findings_percent_string_credited(self) -> None:
+        """Gold=0.8236, tol=0.0005 is credited when key_findings contains "82.4%".
+
+        _extract_numbers returns 82.4 from "82.4%"; 82.4 / 100 = 0.824 ≈ 0.8236.
+        """
+        fact = GoldFact("F4", "attendance rate ~82.4%", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {}, ["The attendance rate was 82.4% this quarter."])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+        assert "percent_normalized" in detail.method
+
+    # ------------------------------------------------------------------
+    # Positive: model already emits fractional form (0.824) — as-is path
+    # ------------------------------------------------------------------
+
+    def test_fractional_value_still_credited_as_is(self) -> None:
+        """Gold=0.8236, tol=0.0005 is credited when model already emits 0.824.
+
+        |0.824 - 0.8236| = 0.0004 <= 0.0005 → as-is match; no /100 needed.
+        """
+        fact = GoldFact("F4", "attendance rate ~82.4%", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {"attendance_rate": 0.824}, [])
+        assert detail.score == pytest.approx(1.0)
+        assert detail.matched is True
+        # As-is match; method must NOT claim percent_normalized
+        assert "percent_normalized" not in detail.method
+
+    # ------------------------------------------------------------------
+    # Negative: gold > 1 (count) — /100 expansion must NOT fire
+    # ------------------------------------------------------------------
+
+    def test_count_gold_no_false_positive_from_pct_expansion(self) -> None:
+        """Gold=135 (count) must NOT be credited by candidate 1.35.
+
+        1.35 * 100 = 135, but the /100 normalization is only applied when
+        gold <= 1, so this must score 0.0.
+        """
+        fact = GoldFact("F1", "135 students enrolled", ["students.csv"], 135.0, 0.0)
+        detail = score_fact(fact, {"some_metric": 1.35}, [])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    def test_unrelated_value_not_credited_via_pct_norm(self) -> None:
+        """Gold=0.10 must NOT be credited by candidate 50.
+
+        50 / 100 = 0.5, which is not within any reasonable tolerance of 0.10.
+        """
+        fact = GoldFact("F7", "10% discount rate", ["pricing.csv"], 0.10, 0.005)
+        detail = score_fact(fact, {"discount": 50.0}, [])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    # ------------------------------------------------------------------
+    # Negative: rate just outside tolerance after /100
+    # ------------------------------------------------------------------
+
+    def test_percent_value_outside_tolerance_not_credited(self) -> None:
+        """Gold=0.8236, tol=0.0005 must NOT credit 83.5 (83.5/100=0.835, |0.835-0.8236|=0.0114).
+
+        The value is outside tolerance even after /100 normalization.
+        """
+        fact = GoldFact("F4", "attendance rate ~82.4%", ["att.csv"], 0.8236, 0.0005)
+        detail = score_fact(fact, {"attendance_rate": 83.5}, [])
+        assert detail.score == pytest.approx(0.0)
+        assert detail.matched is False
+
+    # ------------------------------------------------------------------
+    # Method label traceability in score_facts aggregate
+    # ------------------------------------------------------------------
+
+    def test_percent_normalized_match_recorded_in_score_facts(self) -> None:
+        """score_facts detail for a percent-normalized match must note the method."""
+        facts = [GoldFact("F4", "attendance rate ~82.4%", ["att.csv"], 0.8236, 0.0005)]
+        result = score_facts(facts, {"rate_pct": 82.4}, [])
+        assert result.grounding_accuracy == pytest.approx(1.0)
+        assert result.facts_matched == 1
+        assert len(result.details) == 1
+        assert "percent_normalized" in result.details[0].method
