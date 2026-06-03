@@ -698,6 +698,126 @@ class TestAdapterRegistry:
 
 
 # ---------------------------------------------------------------------------
+# Temperature default + CLI forwarding + judge determinism tests
+# ---------------------------------------------------------------------------
+
+
+class TestTemperatureDefaults:
+    """Tests for default temperature, CLI forwarding, and judge determinism."""
+
+    def test_adapter_default_temperature_is_1_0(self) -> None:
+        """OpenRouterAdapter must default to temperature 1.0."""
+        adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4-5", api_key="sk-or-test")
+        assert adapter._temperature == 1.0
+
+    def test_adapter_explicit_temperature_is_forwarded(self) -> None:
+        """An explicit temperature arg must be stored on the adapter."""
+        adapter = OpenRouterAdapter(
+            model="anthropic/claude-sonnet-4-5",
+            api_key="sk-or-test",
+            temperature=0.3,
+        )
+        assert adapter._temperature == pytest.approx(0.3)
+
+    def test_adapter_temperature_included_in_http_payload(self) -> None:
+        """The temperature stored on the adapter must appear in the HTTP request payload."""
+        with _MockHttpx(_MOCK_OR_RESPONSE) as mock_post:
+            adapter = OpenRouterAdapter(
+                model="anthropic/claude-sonnet-4-5",
+                api_key="sk-or-test",
+                temperature=0.3,
+            )
+            adapter.run(_VALID_TASK, run_index=0)
+
+        assert mock_post.called
+        call_kwargs = mock_post.call_args[1]
+        payload: dict[str, object] = call_kwargs["json"]
+        assert payload["temperature"] == pytest.approx(0.3)
+
+    def test_cli_temperature_flag_forwarded_to_adapter(self) -> None:
+        """--temperature 0.3 must be forwarded to the OpenRouterAdapter via _build_adapter."""
+        from runner.cli import _build_adapter
+
+        adapter = _build_adapter("openrouter", model="anthropic/claude-sonnet-4-5", temperature=0.3)
+        assert isinstance(adapter, OpenRouterAdapter)
+        assert adapter._temperature == pytest.approx(0.3)
+
+    def test_cli_temperature_flag_default_is_1_0(self) -> None:
+        """CLI --temperature default must be 1.0."""
+        from runner.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["--pack", "operations", "--out", "/tmp/x"])
+        assert args.temperature == pytest.approx(1.0)
+
+    def test_cli_temperature_flag_parses_custom_value(self) -> None:
+        """CLI --temperature 0.3 must parse to 0.3 as a float."""
+        from runner.cli import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(
+            ["--pack", "operations", "--out", "/tmp/x", "--temperature", "0.3"]
+        )
+        assert args.temperature == pytest.approx(0.3)
+
+    def test_stub_adapter_ignores_temperature(self) -> None:
+        """StubAdapter must be instantiated successfully even when temperature is forwarded."""
+        from runner.cli import _build_adapter
+
+        # StubAdapter doesn't accept temperature; _build_adapter must fall back cleanly.
+        adapter = _build_adapter("stub", temperature=0.7)
+        from runner.adapters.stub_adapter import StubAdapter
+
+        assert isinstance(adapter, StubAdapter)
+
+    def test_judge_calls_post_chat_completion_with_temperature_zero(self) -> None:
+        """JudgeClient.judge must always pass temperature=0.0 to post_chat_completion.
+
+        This ensures judge scoring remains deterministic regardless of the
+        OpenRouterAdapter's default temperature of 1.0.
+        """
+        from unittest.mock import patch
+
+        from benchmark.rubrics.judge_client import JudgeClient
+
+        _VALID_OUTPUT: dict[str, object] = {
+            "task_id": "T1-OPS-001",
+            "model_id": "test/model",
+            "run_index": 0,
+            "structured_metrics": {},
+            "key_findings": ["42 active students."],
+            "limitations": ["Snapshot count."],
+            "evidence_citations": [],
+            "runtime_metadata": {
+                "adapter_version": "0.1.0",
+                "timestamp_utc": "2026-06-01T12:00:00Z",
+                "latency_ms": 100.0,
+                "prompt_tokens": 50,
+                "completion_tokens": 20,
+                "model_temperature": 1.0,
+                "provider": "test",
+                "pack_id": None,
+            },
+        }
+
+        with patch(
+            "runner.adapters.openrouter_adapter.post_chat_completion",
+            return_value="0.85",
+        ) as mock_pcc:
+            client = JudgeClient(api_key="sk-or-test")
+            score = client.judge("grounding_accuracy", "", _VALID_TASK, _VALID_OUTPUT)
+
+        assert score == pytest.approx(0.85)
+        mock_pcc.assert_called_once()
+        _, call_kwargs = mock_pcc.call_args
+        assert call_kwargs["temperature"] == pytest.approx(0.0), (
+            "Judge must always call post_chat_completion with temperature=0.0 "
+            "to stay deterministic; got temperature="
+            f"{call_kwargs['temperature']!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Live integration test (opt-in, requires OPENROUTER_API_KEY)
 # ---------------------------------------------------------------------------
 
