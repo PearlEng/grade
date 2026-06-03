@@ -1,0 +1,68 @@
+"""Tests for the runner CLI ``--judge`` flag wiring (network-free)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+import runner.cli as cli
+
+
+def test_judge_flag_defaults_false() -> None:
+    """Without --judge, the parsed flag is False."""
+    args = cli.build_parser().parse_args(["--pack", "operations", "--out", "/tmp/x"])
+    assert args.judge is False
+
+
+def test_judge_flag_parses_true() -> None:
+    """With --judge, the parsed flag is True."""
+    args = cli.build_parser().parse_args(["--pack", "operations", "--out", "/tmp/x", "--judge"])
+    assert args.judge is True
+
+
+def test_main_passes_live_judge_to_run_task(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """--judge builds a JudgeClient and threads it into run_task."""
+    captured: dict[str, object | None] = {}
+
+    def fake_run_task(**kwargs: object) -> object:
+        captured["judge_client"] = kwargs.get("judge_client")
+        raise RuntimeError("stop-after-capture")  # main catches -> returns 1
+
+    sentinel = object()
+    monkeypatch.setattr(cli, "run_task", fake_run_task)
+    monkeypatch.setattr("benchmark.rubrics.judge_client.JudgeClient", lambda: sentinel)
+
+    rc = cli.main(
+        [
+            "--pack",
+            "operations",
+            "--adapter",
+            "stub",
+            "--runs",
+            "1",
+            "--judge",
+            "--out",
+            str(tmp_path),
+        ]
+    )
+    assert rc == 1
+    assert captured["judge_client"] is sentinel
+
+
+def test_main_uses_null_judge_without_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Without --judge, run_task receives judge_client=None (dispatcher uses null judge)."""
+    captured: dict[str, object | None] = {}
+
+    def fake_run_task(**kwargs: object) -> object:
+        captured["judge_client"] = kwargs.get("judge_client")
+        raise RuntimeError("stop-after-capture")
+
+    monkeypatch.setattr(cli, "run_task", fake_run_task)
+    rc = cli.main(
+        ["--pack", "operations", "--adapter", "stub", "--runs", "1", "--out", str(tmp_path)]
+    )
+    assert rc == 1
+    assert captured["judge_client"] is None

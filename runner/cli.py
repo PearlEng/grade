@@ -210,6 +210,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Load tasks and validate configuration without running the adapter.",
     )
+    parser.add_argument(
+        "--judge",
+        action="store_true",
+        help=(
+            "Use a live OpenRouter-backed judge for the rubric (C2) and claim-validation "
+            "(C3) judge fallback, instead of the default null judge (0.5). Requires "
+            "OPENROUTER_API_KEY."
+        ),
+    )
     return parser
 
 
@@ -254,6 +263,13 @@ def main(argv: list[str] | None = None) -> int:
 
     out_dir = Path(args.out)
 
+    # --- Build judge (optional, live OpenRouter) ---
+    judge_client: object | None = None
+    if args.judge:
+        from benchmark.rubrics.judge_client import JudgeClient
+
+        judge_client = JudgeClient()
+
     # --- Run tasks ---
     task_results: list[TaskRunResult] = []
     all_outputs: list[dict] = []
@@ -268,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
                 adapter=adapter,
                 runs=args.runs,
                 pack_id=pack_id,
+                judge_client=judge_client,
             )
         except Exception as exc:  # noqa: BLE001
             print(f"FAILED ({exc})", flush=True)

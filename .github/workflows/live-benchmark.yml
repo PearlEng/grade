@@ -1,0 +1,68 @@
+name: Live Benchmark (manual)
+
+# Manually-triggered live run against the OpenRouter API using the repo's
+# OPENROUTER_API_KEY secret. Exercises the OpenRouter adapter AND (with --judge)
+# the live rubric/claim judge end-to-end, then renders + uploads a real scorecard.
+# Kept small/cheap by default (one pack, 1 rep, a low-cost model).
+
+on:
+  workflow_dispatch:
+    inputs:
+      pack:
+        description: "Task pack to run"
+        type: choice
+        default: operations
+        options: [operations, outcomes, equity_research]
+      model:
+        description: "Model: a seed key (claude-haiku-4-5, claude-sonnet-4-6, gpt-5, gemini-2.5-pro) or a raw OpenRouter slug"
+        type: string
+        default: claude-haiku-4-5
+      runs:
+        description: "Repetitions per task"
+        type: string
+        default: "1"
+      judge:
+        description: "Use the live OpenRouter judge for rubric/claim dimensions"
+        type: boolean
+        default: true
+
+jobs:
+  live-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (with openrouter extra)
+        run: pip install -e ".[openrouter]"
+      - name: Run benchmark against OpenRouter
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          JUDGE_FLAG=""
+          if [ "${{ inputs.judge }}" = "true" ]; then JUDGE_FLAG="--judge"; fi
+          python -m runner.cli \
+            --pack "${{ inputs.pack }}" \
+            --adapter openrouter \
+            --model "${{ inputs.model }}" \
+            --runs "${{ inputs.runs }}" \
+            $JUDGE_FLAG \
+            --out out
+      - name: Render scorecard to the run log
+        run: |
+          python - <<'PY'
+          import json
+          from benchmark.schemas import validate_result
+          from benchmark.reports.scorecard import generate_scorecard_report
+          result = json.load(open("out/result.json"))
+          validate_result(result)
+          print("result.json: VALID against result_schema\n")
+          print(generate_scorecard_report(result).markdown)
+          PY
+      - name: Upload scorecard + raw outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scorecard-${{ inputs.pack }}-${{ inputs.model }}
+          path: out
