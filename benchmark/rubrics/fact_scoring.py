@@ -6,6 +6,37 @@ and ``key_findings`` fields of a normalized model output (``output_schema.json``
 and compare them against the ``gold_facts`` array in a task definition
 (``task_schema.json``).
 
+Matching Strategy (value-based)
+--------------------------------
+A gold fact is credited when its VALUE is actually present in the model output,
+**regardless of the key name used**.  Real models invent arbitrary keys (e.g.
+``currently_enrolled_students``), so key-name lookup is unreliable.
+
+**Numeric gold facts** (``numeric_value`` is not None):
+
+1. Scan **all** numeric values in the flattened ``structured_metrics`` dict
+   (keys ignored entirely).  Credit (score 1.0) if any value is within
+   ``tolerance`` of ``gold_fact.numeric_value``.
+2. If not found in ``structured_metrics``, parse numbers out of every string in
+   ``key_findings`` and ``limitations`` using :func:`_extract_numbers`.  Credit
+   if any parsed number is within tolerance.
+
+False-positive guard for numeric matching
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For ``structured_metrics`` the check is a precise numeric equality-within-
+tolerance — no string parsing is involved, so false positives are constrained
+to values numerically close to the gold value (controlled by ``tolerance``).
+For free-text extraction the same strict ``score_numeric`` check applies; only
+values that fall within the specified tolerance window pass.  When
+``tolerance == 0`` this is an exact float comparison.
+
+**Non-numeric gold facts** (``numeric_value`` is None):
+
+Scans ``key_findings`` text (and ``limitations``) for the claim via normalized
+substring matching: at least one token from the claim must appear in at least
+one finding (token-overlap fallback) or the full claim/finding must be a
+substring of the other after lowercasing and whitespace normalization.
+
 Public API
 ----------
 - :func:`score_numeric` — absolute or relative tolerance match for floats.
@@ -372,82 +403,128 @@ def score_ranking_similarity(
 
 
 # ---------------------------------------------------------------------------
-# Fact-level dispatcher
+# Number extraction helper
+# ---------------------------------------------------------------------------
+
+# Matches numbers in free text: handles optional leading $, optional commas as
+# thousands separators, optional trailing %, optional decimal part.
+# Examples matched: 135, 82.4%, $1,250, 1,234, 0.8092
+_NUMBER_PATTERN = re.compile(
+    r"(?<![.\d])"  # not preceded by digit or dot (avoid mid-word matches)
+    r"\$?"  # optional currency prefix
+    r"(-?"  # optional negative sign
+    r"\d{1,3}"  # leading digits (1–3 for comma-group start)
+    r"(?:,\d{3})*"  # optional comma-grouped thousands
+    r"(?:\.\d+)?"  # optional decimal
+    r")"
+    r"%?"  # optional trailing percent (consumed but not returned)
+    r"(?![\d,])"  # not followed by digit or comma (avoid partial matches)
+)
+
+
+def _extract_numbers(text: str) -> list[float]:
+    """Extract all numeric values from a free-text string.
+
+    Handles formats like ``135``, ``82.4%``, ``$1,250``, ``1,234``, ``0.8092``.
+    Percentage signs are stripped before conversion (the raw numeric value is
+    returned, not the fractional equivalent — so ``"82.4%"`` returns ``82.4``).
+
+    Args:
+        text: Arbitrary free-text string.
+
+    Returns:
+        List of floats extracted from the text, in order of appearance.
+        Empty list if no numbers found.
+    """
+    results: list[float] = []
+    for m in _NUMBER_PATTERN.finditer(text):
+        raw = m.group(1).replace(",", "")
+        try:
+            results.append(float(raw))
+        except ValueError:
+            pass
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Fact-level dispatcher (value-based matching)
 # ---------------------------------------------------------------------------
 
 
-def _find_predicted_value(
-    gold_fact: GoldFact,
+def _find_predicted_numeric(
+    gold_value: float,
+    tolerance: float | str,
     structured_metrics: dict[str, Any],
     key_findings: list[str],
-) -> tuple[Any, str]:
-    """Search structured_metrics and key_findings for a value matching *gold_fact*.
+    limitations: list[str],
+) -> tuple[float | None, str]:
+    """Search for a numeric value matching *gold_value* within *tolerance*.
 
-    Strategy:
+    Search order (stops at first match):
 
-    1. If *gold_fact* has a ``numeric_value``:
-
-       a. Look for a ``structured_metrics`` key whose name contains the
-          fact_id (e.g. ``'f1'`` in ``'f1_total_students'``).
-       b. Fall back: among all numeric values in ``structured_metrics``,
-          return the one **closest** to ``gold_fact.numeric_value``.  Using
-          the closest-value heuristic avoids the ambiguity that arises when
-          multiple facts share the same output dict and key names do not
-          encode the fact_id.
-       c. Try to extract a number from ``key_findings`` text.
-
-    2. For non-numeric facts, look for a ``structured_metrics`` key whose
-       name matches the fact_id, or fall back to searching ``key_findings``
-       text for the claim.
-
-    This is intentionally simple and permissive — exact matching is done by
-    the caller.  Returns ``(value, source)`` where *source* is
-    ``'structured_metrics'`` or ``'key_findings'`` or ``'not_found'``.
+    1. All **numeric** values in ``structured_metrics`` (keys ignored entirely).
+    2. Numbers parsed from each string in ``key_findings``.
+    3. Numbers parsed from each string in ``limitations``.
 
     Args:
-        gold_fact: The gold fact to look up.
+        gold_value: The expected numeric value.
+        tolerance: Absolute float tolerance or ``"N%"`` relative string.
         structured_metrics: ``structured_metrics`` dict from the model output.
         key_findings: ``key_findings`` list from the model output.
+        limitations: ``limitations`` list from the model output.
 
     Returns:
-        A ``(predicted_value, source_label)`` tuple.
+        ``(matched_value, source_label)`` where *source_label* is one of
+        ``'structured_metrics'``, ``'key_findings'``, ``'limitations'``, or
+        ``'not_found'``.
     """
-    fact_id_lower = gold_fact.fact_id.lower()
-
-    # --- Numeric path ---
-    if gold_fact.numeric_value is not None:
-        # 1a. Try to find a structured_metrics key that mentions the fact_id
-        for key, val in structured_metrics.items():
-            if isinstance(val, (int, float)) and fact_id_lower in key.lower():
+    # 1. Scan all numeric values in structured_metrics (value-based, key-agnostic)
+    for val in structured_metrics.values():
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            if score_numeric(float(val), gold_value, tolerance) == 1.0:
                 return (float(val), "structured_metrics")
 
-        # 1b. Fall back: numeric value in structured_metrics closest to gold
-        numeric_candidates = [
-            float(v) for v in structured_metrics.values() if isinstance(v, (int, float))
-        ]
-        if numeric_candidates:
-            gold_num: float = gold_fact.numeric_value  # narrowed; not None here
-            closest = min(numeric_candidates, key=lambda v: abs(v - gold_num))
-            return (closest, "structured_metrics")
+    # 2. Parse numbers from key_findings free text
+    for finding in key_findings:
+        for num in _extract_numbers(finding):
+            if score_numeric(num, gold_value, tolerance) == 1.0:
+                return (num, "key_findings")
 
-        # 1c. Try to extract a number from key_findings text
-        for finding in key_findings:
-            numbers = re.findall(r"-?\d+(?:\.\d+)?", finding)
-            if numbers:
-                return (float(numbers[0]), "key_findings")
+    # 3. Parse numbers from limitations free text
+    for lim in limitations:
+        for num in _extract_numbers(lim):
+            if score_numeric(num, gold_value, tolerance) == 1.0:
+                return (num, "limitations")
 
-    # --- Non-numeric path ---
-    else:
-        # 2a. Look for exact string value in structured_metrics
-        for key, val in structured_metrics.items():
-            if isinstance(val, str) and fact_id_lower in key.lower():
-                return (val, "structured_metrics")
+    return (None, "not_found")
 
-        # 2b. Search key_findings for the claim text
-        claim_lower = gold_fact.claim.lower()
-        for finding in key_findings:
-            if finding.lower() in claim_lower or claim_lower in finding.lower():
-                return (finding, "key_findings")
+
+def _find_predicted_text(
+    claim: str,
+    key_findings: list[str],
+    limitations: list[str],
+) -> tuple[str | None, str]:
+    """Search for a non-numeric claim in ``key_findings`` and ``limitations``.
+
+    Matching uses normalized substring containment (case-insensitive, leading/
+    trailing whitespace stripped).  The claim is credited when either the claim
+    is a substring of a finding or the finding is a substring of the claim.
+
+    Args:
+        claim: The gold fact claim text.
+        key_findings: ``key_findings`` list from the model output.
+        limitations: ``limitations`` list from the model output.
+
+    Returns:
+        ``(matched_text, source_label)`` or ``(None, 'not_found')``.
+    """
+    claim_lower = claim.strip().lower()
+
+    for text_list, label in [(key_findings, "key_findings"), (limitations, "limitations")]:
+        for entry in text_list:
+            entry_lower = entry.strip().lower()
+            if claim_lower in entry_lower or entry_lower in claim_lower:
+                return (entry, label)
 
     return (None, "not_found")
 
@@ -456,6 +533,7 @@ def score_fact(
     gold_fact: GoldFact,
     structured_metrics: dict[str, Any],
     key_findings: list[str],
+    limitations: list[str] | None = None,
 ) -> FactDetail:
     """Score one gold fact against a model output.
 
@@ -468,52 +546,82 @@ def score_fact(
     - ``gold_fact.tolerance`` if set (absolute or ``"N%"`` relative string).
     - ``0.0`` (exact match) if ``gold_fact.tolerance`` is ``None``.
 
-    For **non-numeric** facts the predicted value is taken from
-    ``structured_metrics`` first, then from the first ``key_findings`` entry
-    that contains the claim; if neither yields a value the fact scores ``0.0``.
+    Matching is **value-based**: the key name in ``structured_metrics`` is
+    ignored entirely.  Any numeric value in ``structured_metrics`` that falls
+    within tolerance of ``gold_fact.numeric_value`` will credit the fact.  If
+    no match is found in ``structured_metrics``, numbers are parsed from
+    ``key_findings`` (and ``limitations``) free text.
+
+    For **non-numeric** facts the predicted value is taken from the first
+    ``key_findings`` (or ``limitations``) entry that contains the claim as a
+    substring (or vice-versa); if neither yields a value the fact scores ``0.0``.
 
     Args:
         gold_fact: The gold fact to evaluate.
         structured_metrics: ``structured_metrics`` dict from the model output.
         key_findings: ``key_findings`` list from the model output.
+        limitations: Optional ``limitations`` list from the model output.
+            Searched as a fallback after ``key_findings``.
 
     Returns:
         A :class:`FactDetail` with the per-fact score and diagnostic fields.
     """
-    predicted_value, _source = _find_predicted_value(gold_fact, structured_metrics, key_findings)
-
-    if predicted_value is None:
-        return FactDetail(
-            fact_id=gold_fact.fact_id,
-            score=0.0,
-            matched=False,
-            predicted_value=None,
-            method="not_found",
-        )
+    lims: list[str] = limitations if limitations is not None else []
 
     if gold_fact.numeric_value is not None:
         tolerance: float | str = gold_fact.tolerance if gold_fact.tolerance is not None else 0.0
-        method = (
+        method_label = (
             f"numeric_relative({tolerance})"
             if isinstance(tolerance, str)
             else f"numeric_absolute({tolerance})"
         )
-        s = score_numeric(predicted_value, gold_fact.numeric_value, tolerance)
-        return FactDetail(
-            fact_id=gold_fact.fact_id,
-            score=s,
-            matched=s == 1.0,
-            predicted_value=predicted_value,
-            method=method,
+
+        matched_val, source = _find_predicted_numeric(
+            gold_fact.numeric_value,
+            tolerance,
+            structured_metrics,
+            key_findings,
+            lims,
         )
+
+        if matched_val is None:
+            return FactDetail(
+                fact_id=gold_fact.fact_id,
+                score=0.0,
+                matched=False,
+                predicted_value=None,
+                method="not_found",
+            )
+
+        # Score is always 1.0 here (find already verified within tolerance)
+        return FactDetail(
+            fact_id=gold_fact.fact_id,
+            score=1.0,
+            matched=True,
+            predicted_value=matched_val,
+            method=f"{method_label}[{source}]",
+        )
+
     else:
-        s = score_exact_match(predicted_value, gold_fact.claim)
+        # Non-numeric: search key_findings / limitations for claim text
+        matched_text, source = _find_predicted_text(gold_fact.claim, key_findings, lims)
+
+        if matched_text is None:
+            return FactDetail(
+                fact_id=gold_fact.fact_id,
+                score=0.0,
+                matched=False,
+                predicted_value=None,
+                method="not_found",
+            )
+
+        s = score_exact_match(matched_text, gold_fact.claim)
         return FactDetail(
             fact_id=gold_fact.fact_id,
             score=s,
             matched=s == 1.0,
-            predicted_value=predicted_value,
-            method="exact_match",
+            predicted_value=matched_text,
+            method=f"exact_match[{source}]",
         )
 
 
@@ -521,6 +629,7 @@ def score_facts(
     gold_facts: list[GoldFact] | list[dict[str, Any]],
     structured_metrics: dict[str, Any],
     key_findings: list[str],
+    limitations: list[str] | None = None,
 ) -> FactScoreResult:
     """Score all gold facts for a task against a model output.
 
@@ -535,11 +644,18 @@ def score_facts(
     If *gold_facts* is empty, ``grounding_accuracy`` is ``1.0`` by convention
     (no facts to violate).
 
+    Matching is **value-based** for numeric facts: the key name in
+    ``structured_metrics`` is irrelevant; only the numeric value matters.  See
+    :func:`score_fact` for the full matching strategy.
+
     Args:
         gold_facts: List of gold facts.  May be :class:`GoldFact` instances or
             raw task-schema dicts.
         structured_metrics: ``structured_metrics`` dict from the model output.
         key_findings: ``key_findings`` list from the model output.
+        limitations: Optional ``limitations`` list from the model output.
+            Searched as a fallback after ``key_findings`` for both numeric and
+            non-numeric facts.
 
     Returns:
         A :class:`FactScoreResult` with the aggregate grounding accuracy score
@@ -548,10 +664,12 @@ def score_facts(
     Examples:
         >>> from benchmark.rubrics.fact_scoring import GoldFact, score_facts
         >>> facts = [GoldFact("F1", "135 students", ["students.csv"], 135, 0)]
-        >>> result = score_facts(facts, {"total_students": 135}, [])
+        >>> result = score_facts(facts, {"currently_enrolled_students": 135}, [])
         >>> result.grounding_accuracy
         1.0
     """
+    lims: list[str] = limitations if limitations is not None else []
+
     # Normalise to GoldFact instances
     normalised: list[GoldFact] = []
     for item in gold_facts:
@@ -573,18 +691,13 @@ def score_facts(
     flags: list[str] = []
 
     for gf in normalised:
-        detail = score_fact(gf, structured_metrics, key_findings)
+        detail = score_fact(gf, structured_metrics, key_findings, lims)
         details.append(detail)
-        if (
-            detail.method.startswith("numeric_absolute")
-            and gf.tolerance is not None
-            and gf.tolerance > 0
-        ):
-            if "numeric_tolerance_applied" not in flags:
-                flags.append("numeric_tolerance_applied")
-        if detail.method.startswith("numeric_relative"):
-            if "numeric_tolerance_applied" not in flags:
-                flags.append("numeric_tolerance_applied")
+        if gf.numeric_value is not None:
+            tol = gf.tolerance
+            if isinstance(tol, str) or (isinstance(tol, (int, float)) and tol > 0):
+                if "numeric_tolerance_applied" not in flags:
+                    flags.append("numeric_tolerance_applied")
 
     total = len(details)
     matched = sum(1 for d in details if d.matched)

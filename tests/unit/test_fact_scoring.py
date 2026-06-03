@@ -13,6 +13,7 @@ Test matrix
 - :func:`score_ranking_similarity`: perfect order, reversed order, partial match, ties.
 - :func:`score_fact`: numeric dispatch, non-numeric dispatch, missing value.
 - :func:`score_facts`: all-correct, all-wrong, mixed, empty facts list, raw dict input.
+- Value-based matching: arbitrary key names, key_findings text extraction, false positives.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import pytest
 from benchmark.rubrics.fact_scoring import (
     FactScoreResult,
     GoldFact,
+    _extract_numbers,
     score_date_range,
     score_exact_match,
     score_fact,
@@ -308,6 +310,48 @@ class TestScoreRankingSimilarity:
 
 
 # ===========================================================================
+# _extract_numbers  (helper)
+# ===========================================================================
+
+
+class TestExtractNumbers:
+    """Tests for _extract_numbers() number extraction helper."""
+
+    def test_plain_integer(self) -> None:
+        """Plain integer string should be extracted."""
+        assert _extract_numbers("135 students") == [135.0]
+
+    def test_decimal_number(self) -> None:
+        """Decimal number should be extracted."""
+        result = _extract_numbers("rate is 82.4%")
+        assert 82.4 in result
+
+    def test_comma_thousands(self) -> None:
+        """Comma-formatted thousands should be parsed as a single number."""
+        result = _extract_numbers("1,234 records")
+        assert 1234.0 in result
+
+    def test_currency_prefix(self) -> None:
+        """Dollar sign prefix should be stripped."""
+        result = _extract_numbers("cost $1,250")
+        assert 1250.0 in result
+
+    def test_multiple_numbers(self) -> None:
+        """Multiple numbers in one string should all be extracted."""
+        result = _extract_numbers("60 students in SCH-001 and 45 in SCH-002")
+        assert 60.0 in result
+        assert 45.0 in result
+
+    def test_empty_string(self) -> None:
+        """Empty string should return empty list."""
+        assert _extract_numbers("") == []
+
+    def test_no_numbers(self) -> None:
+        """Text without numbers should return empty list."""
+        assert _extract_numbers("no numbers here") == []
+
+
+# ===========================================================================
 # score_fact  (dispatcher)
 # ===========================================================================
 
@@ -364,6 +408,65 @@ class TestScoreFact:
         fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
         detail = score_fact(fact, {}, ["The program enrolls 135 students in total."])
         assert detail.score == 1.0
+
+    # --- Value-based matching: arbitrary key names ---
+
+    def test_numeric_arbitrary_key_in_structured_metrics(self) -> None:
+        """Gold numeric fact should be credited when value appears under ANY key.
+
+        This is the core benchmark-validity fix: real models use arbitrary key names
+        like 'currently_enrolled_students' rather than fact IDs.
+        """
+        fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
+        detail = score_fact(fact, {"currently_enrolled_students": 135}, [])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_numeric_value_in_key_findings_text(self) -> None:
+        """Gold numeric fact should be credited when value appears only in key_findings text."""
+        fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
+        detail = score_fact(fact, {}, ["135 students are enrolled in the program."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_numeric_value_absent_scores_zero(self) -> None:
+        """Gold numeric fact must NOT be credited when value is absent from all sources."""
+        fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
+        detail = score_fact(fact, {"total_students": 200}, ["Program has 200 students."])
+        assert detail.score == 0.0
+        assert detail.matched is False
+
+    def test_numeric_near_tolerance_boundary_credited(self) -> None:
+        """Value just inside absolute tolerance should be credited (score 1.0)."""
+        # gold=135, tolerance=2 → window [133, 137]; predicted=134 is inside
+        fact = self._make_fact(numeric_value=135.0, tolerance=2.0)
+        detail = score_fact(fact, {"num_students": 134}, [])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_numeric_just_outside_tolerance_not_credited(self) -> None:
+        """Value just outside absolute tolerance should NOT be credited."""
+        # gold=135, tolerance=2 → window [133, 137]; predicted=132 is outside
+        fact = self._make_fact(numeric_value=135.0, tolerance=2.0)
+        detail = score_fact(fact, {"num_students": 132}, [])
+        assert detail.score == 0.0
+        assert detail.matched is False
+
+    def test_numeric_relative_tolerance_credited(self) -> None:
+        """Value within relative-% tolerance should be credited via value-based matching."""
+        # gold=100, 5% tolerance → window [95, 105]; predicted=103 is inside
+        # score_facts supports string tolerances on GoldFact instances
+        from benchmark.rubrics.fact_scoring import score_numeric as _sn
+
+        assert _sn(103.0, 100.0, "5%") == 1.0
+        assert _sn(106.0, 100.0, "5%") == 0.0
+
+    def test_numeric_value_in_limitations_text(self) -> None:
+        """Gold numeric fact should be credited when value appears only in limitations text."""
+        fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
+        detail = score_fact(fact, {}, [], limitations=["Note: 135 records were processed."])
+        assert detail.score == 1.0
+        assert detail.matched is True
 
     # --- Non-numeric dispatch ---
 
@@ -564,6 +667,52 @@ class TestScoreFacts:
         assert score_numeric(105.0, 100.0, "5%") == pytest.approx(1.0)
         assert score_numeric(106.0, 100.0, "5%") == pytest.approx(0.0)
 
+    # --- Value-based matching in score_facts ---
+
+    def test_arbitrary_key_names_full_credit(self) -> None:
+        """score_facts must give full credit when all correct values appear under arbitrary keys.
+
+        This reproduces the live benchmark failure: model reports correct values
+        (135 enrolled, 14 groups) under invented key names and was previously
+        scored ~3% because key-name matching failed.
+        """
+        facts = self._ops001_facts()
+        result = score_facts(
+            facts,
+            {
+                "currently_enrolled_students": 135,
+                "number_of_active_tutoring_groups": 14,
+            },
+            [],
+        )
+        assert result.grounding_accuracy == pytest.approx(1.0)
+        assert result.facts_matched == 2
+
+    def test_value_in_key_findings_full_credit(self) -> None:
+        """score_facts must give full credit when correct values appear only in key_findings."""
+        facts = self._ops001_facts()
+        result = score_facts(
+            facts,
+            {},
+            [
+                "A total of 135 students are currently enrolled across all schools.",
+                "The program operates 14 tutoring groups in total.",
+            ],
+        )
+        assert result.grounding_accuracy == pytest.approx(1.0)
+        assert result.facts_matched == 2
+
+    def test_value_absent_no_false_positive(self) -> None:
+        """score_facts must NOT credit a fact when the gold value is absent."""
+        facts = [GoldFact("F1", "135 students", ["students.csv"], 135.0, 0.0)]
+        result = score_facts(
+            facts,
+            {"enrollment_count": 200},
+            ["The program has approximately 200 students enrolled."],
+        )
+        assert result.grounding_accuracy == pytest.approx(0.0)
+        assert result.facts_matched == 0
+
 
 # ===========================================================================
 # FactScoreResult  (dataclass sanity)
@@ -598,7 +747,7 @@ class TestFactScoreResult:
 class TestIntegrationRealTaskShape:
     """Smoke test using a mock of real T1-OPS-001 gold facts and a model output."""
 
-    _GOLD_FACTS = [
+    _GOLD_FACTS: list[dict[str, object]] = [
         {
             "fact_id": "F1",
             "claim": "The program enrolls 135 students in total.",
@@ -641,13 +790,32 @@ class TestIntegrationRealTaskShape:
         assert result.grounding_accuracy == pytest.approx(1.0)
         assert result.facts_matched == 4
 
-    def test_partially_correct_model_output(self) -> None:
-        """Model that gets 2 out of 4 facts right should score 0.5."""
+    def test_perfect_model_output_arbitrary_keys(self) -> None:
+        """A model that reports all correct values under arbitrary key names should score 1.0.
+
+        This is the primary regression test for the value-based matching fix.
+        """
         structured_metrics = {
-            "f1_total_students": 135,  # correct
+            "currently_enrolled_students": 135,
+            "sch001_student_count": 60,
+            "sch002_students": 45,
+            "active_tutoring_groups": 14,
+        }
+        result = score_facts(self._GOLD_FACTS, structured_metrics, [])
+        assert result.grounding_accuracy == pytest.approx(1.0)
+        assert result.facts_matched == 4
+
+    def test_partially_correct_model_output(self) -> None:
+        """Model that gets 2 out of 4 facts right should score 0.5.
+
+        Values 135 and 45 are correct; 999 does not match any gold fact value
+        (60 or 14), so grounding accuracy = 2/4 = 0.5.
+        """
+        structured_metrics = {
+            "f1_total_students": 135,  # correct (matches F1=135)
             "f2_sch001_students": 999,  # wrong
-            "f3_sch002_students": 45,  # correct
-            "f5_total_groups": 999,  # wrong
+            "f3_sch002_students": 45,  # correct (matches F3=45)
+            "f5_total_groups": 999,  # wrong (999 != 60, 14 — note: 999 is deduplicated in scan)
         }
         result = score_facts(self._GOLD_FACTS, structured_metrics, [])
         assert result.grounding_accuracy == pytest.approx(0.5)
