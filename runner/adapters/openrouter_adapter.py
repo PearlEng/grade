@@ -73,6 +73,31 @@ HTTP_REFERER: str = "https://github.com/PearlEng/grade"
 #: X-Title header value sent with every request (OpenRouter attribution).
 X_TITLE: str = "GRADE Benchmark"
 
+#: Default request timeout in seconds for all OpenRouter HTTP calls.
+#: Override via the ``GRADE_OPENROUTER_TIMEOUT`` environment variable.
+#: Set to a value that is long enough for large completions but short enough
+#: to fail-fast rather than block an entire benchmark run indefinitely.
+DEFAULT_OPENROUTER_TIMEOUT: float = 120.0
+
+
+def _get_openrouter_timeout() -> float:
+    """Return the configured OpenRouter request timeout in seconds.
+
+    Reads the ``GRADE_OPENROUTER_TIMEOUT`` environment variable.  If unset or
+    unparseable, falls back to :data:`DEFAULT_OPENROUTER_TIMEOUT` (120 s).
+
+    Returns:
+        Timeout in seconds as a :class:`float`.
+    """
+    raw = os.environ.get("GRADE_OPENROUTER_TIMEOUT", "")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+    return DEFAULT_OPENROUTER_TIMEOUT
+
+
 #: Seed model shorthand → OpenRouter model slug mapping.
 #:
 #: These are the five models seeded in the GRADE arena (ticket F4).  Pass a
@@ -590,6 +615,12 @@ def post_chat_completion(
     the judge can share the same OpenRouter HTTP logic as the adapter without
     importing the whole :class:`OpenRouterAdapter`.
 
+    The request timeout is read from the ``GRADE_OPENROUTER_TIMEOUT``
+    environment variable at call time (default: :data:`DEFAULT_OPENROUTER_TIMEOUT`
+    seconds, i.e. 120 s).  When the timeout is exceeded, a :exc:`TimeoutError`
+    is raised with a clear message so the runner's per-task resilience can
+    record the failure and continue, rather than blocking the whole run.
+
     Args:
         messages: List of ``{"role": ..., "content": ...}`` dicts.
         model: OpenRouter model slug.
@@ -604,6 +635,7 @@ def post_chat_completion(
         EnvironmentError: If no API key is available.
         ImportError: If ``httpx`` is not installed.
         RuntimeError: If the API returns a non-2xx status.
+        TimeoutError: If the request exceeds the configured timeout.
     """
     # Validate API key before attempting the HTTP import so the error message
     # is clear when the key is missing (even if httpx is also absent).
@@ -625,17 +657,27 @@ def post_chat_completion(
         "max_tokens": max_tokens,
     }
 
-    response = httpx.post(
-        f"{OPENROUTER_BASE_URL}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": HTTP_REFERER,
-            "X-Title": X_TITLE,
-        },
-        json=payload,
-        timeout=60.0,
-    )
+    timeout = _get_openrouter_timeout()
+
+    try:
+        response = httpx.post(
+            f"{OPENROUTER_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": HTTP_REFERER,
+                "X-Title": X_TITLE,
+            },
+            json=payload,
+            timeout=timeout,
+        )
+    except httpx.TimeoutException as exc:
+        raise TimeoutError(
+            f"OpenRouter request timed out after {timeout:.0f}s "
+            f"(model={model!r}). "
+            f"Increase GRADE_OPENROUTER_TIMEOUT to allow more time, "
+            f"or investigate network/model availability."
+        ) from exc
 
     if response.status_code != 200:
         raise RuntimeError(
