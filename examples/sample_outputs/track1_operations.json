@@ -1,0 +1,45 @@
+{
+  "task_id": "T1-OPS-001",
+  "model_id": "stub/echo-v1",
+  "run_index": 0,
+  "structured_metrics": {
+    "f1_value": 135,
+    "f2_value": 60,
+    "f3_value": 45,
+    "f4_value": 30,
+    "f5_value": 14
+  },
+  "key_findings": [
+    "The program enrolls 135 students in total across three schools: SCH-001 (60), SCH-002 (45), SCH-003 (30).",
+    "The program operates 14 tutoring groups: 6 at SCH-001, 5 at SCH-002, and 3 at SCH-003.",
+    "Eight students (~5.9% of enrollees) have not yet been assigned to a tutoring group as of the reporting snapshot."
+  ],
+  "limitations": [
+    "Student counts reflect enrollment as of the snapshot date; students who withdrew before that date are excluded.",
+    "Group counts describe the current active roster and do not reflect any mid-quarter reassignments."
+  ],
+  "evidence_citations": [
+    {
+      "citation_text": "students.csv rows where status='enrolled' grouped by school_id",
+      "source_file": "students.csv",
+      "source_column": "school_id",
+      "grounded": null
+    },
+    {
+      "citation_text": "groups.csv rows grouped by school_id to count tutoring groups per school",
+      "source_file": "groups.csv",
+      "source_column": "school_id",
+      "grounded": null
+    }
+  ],
+  "runtime_metadata": {
+    "adapter_version": "0.1.0",
+    "timestamp_utc": "2026-06-01T09:00:00Z",
+    "latency_ms": 1.0,
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "model_temperature": null,
+    "provider": "stub",
+    "pack_id": "pack_operations"
+  }
+}

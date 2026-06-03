@@ -1,0 +1,44 @@
+{
+  "task_id": "T3-OPS-001",
+  "model_id": "stub/echo-v1",
+  "run_index": 0,
+  "structured_metrics": {
+    "f1_value": 0.7639,
+    "f2_value": 4.53,
+    "f3_value": 0.7396,
+    "f4_value": 0.8092
+  },
+  "key_findings": [
+    "TUT-005 (SCH-002, paraprofessional) has the lowest student attendance rate at approximately 76.4%, which is 4.5 percentage points below the program-wide rate of 80.9%.",
+    "TUT-005 leads two groups: GRP-007 (math, grade 3, 73.96%) and GRP-010 (reading, grade 6, 78.82%). GRP-007 is the lowest-attending group in the program.",
+    "The attendance gap signals that TUT-005 is the highest-priority tutor for operational coaching and targeted support this quarter."
+  ],
+  "limitations": [
+    "Attendance rate alone does not establish the root cause of the gap; session cancellations, student factors, or scheduling issues may contribute alongside tutor-specific factors.",
+    "The assessment is based on a single quarter of data for a paraprofessional role, which may carry different structural constraints than certified-teacher roles."
+  ],
+  "evidence_citations": [
+    {
+      "citation_text": "attendance.csv joined with sessions.csv filtered to completed sessions, grouped by tutor_id",
+      "source_file": "attendance.csv",
+      "source_column": "attended",
+      "grounded": null
+    },
+    {
+      "citation_text": "tutors.csv tutor_id=TUT-005 role=paraprofessional school_id=SCH-002",
+      "source_file": "tutors.csv",
+      "source_column": "tutor_id",
+      "grounded": null
+    }
+  ],
+  "runtime_metadata": {
+    "adapter_version": "0.1.0",
+    "timestamp_utc": "2026-06-01T09:02:00Z",
+    "latency_ms": 1.0,
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "model_temperature": null,
+    "provider": "stub",
+    "pack_id": "pack_operations"
+  }
+}
