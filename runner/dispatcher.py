@@ -42,6 +42,55 @@ from benchmark.schemas import validate_output
 from runner.adapters.base import Adapter
 
 # ---------------------------------------------------------------------------
+# Fixture resolution
+# ---------------------------------------------------------------------------
+
+#: Canonical pack_id → fixtures subdirectory name.
+_PACK_FIXTURE_DIRS: dict[str, str] = {
+    "pack_operations": "pack_operations",
+    "pack_outcomes": "pack_outcomes",
+    "pack_equity_research": "pack_equity_research",
+}
+
+#: Repository root (two levels above this file: runner/ → repo root).
+_REPO_ROOT: Path = Path(__file__).parent.parent
+
+
+def _resolve_fixtures(
+    allowed_inputs: list[str],
+    pack_id: str | None,
+) -> dict[str, str]:
+    """Read fixture files for the given pack and return their full contents.
+
+    Each filename in *allowed_inputs* is resolved from
+    ``fixtures/<pack_dir>/<filename>`` where *pack_dir* is looked up from
+    *pack_id* via :data:`_PACK_FIXTURE_DIRS`.  Files that do not exist in the
+    pack directory are silently omitted from the returned dict.
+
+    Args:
+        allowed_inputs: List of bare filenames from the task's
+            ``allowed_inputs`` field (e.g. ``["students.csv", "groups.csv"]``).
+        pack_id: Canonical pack identifier (e.g. ``"pack_operations"``).
+            When ``None`` or not in :data:`_PACK_FIXTURE_DIRS`, returns an
+            empty dict.
+
+    Returns:
+        A ``{filename: contents}`` dict mapping each resolved filename to its
+        full UTF-8 text contents.
+    """
+    if not pack_id or pack_id not in _PACK_FIXTURE_DIRS:
+        return {}
+
+    fixture_dir = _REPO_ROOT / "fixtures" / _PACK_FIXTURE_DIRS[pack_id]
+    result: dict[str, str] = {}
+    for filename in allowed_inputs:
+        path = fixture_dir / filename
+        if path.is_file():
+            result[filename] = path.read_text(encoding="utf-8")
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
 
@@ -326,11 +375,20 @@ def run_task(
     per_run_scores: list[DimensionScores] = []
     all_flags: list[str] = []
 
+    # Resolve fixture contents once (same for all runs of this task).
+    fixtures: dict[str, str] = _resolve_fixtures(
+        task.get("allowed_inputs", []),
+        pack_id,
+    )
+
     for run_index in range(runs):
-        # Inject pack_id into the task dict so the adapter can embed it.
+        # Inject pack_id and resolved fixture contents into the task dict so
+        # the adapter can embed the actual data in its prompt.
         task_with_pack = dict(task)
         if pack_id is not None:
             task_with_pack["pack_id"] = pack_id
+        # Always set fixtures key (empty dict when pack is unknown/files absent).
+        task_with_pack["fixtures"] = fixtures
 
         output = adapter.run(task_with_pack, run_index=run_index)
 
