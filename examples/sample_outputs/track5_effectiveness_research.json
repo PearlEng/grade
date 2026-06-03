@@ -1,0 +1,44 @@
+{
+  "task_id": "T5-EFR-001",
+  "model_id": "stub/echo-v1",
+  "run_index": 0,
+  "structured_metrics": {
+    "f1_value": 135,
+    "f2_value": 0.6839,
+    "f3_value": 0.8092
+  },
+  "key_findings": [
+    "The program targets 135 minutes of tutoring per week, which exceeds the high-dosage threshold of 90 min/week associated with roughly twice the effect size in the referenced research.",
+    "Program-wide attendance of 80.9% places the cohort just above the 80% attendance goal, meaning most students are receiving close to the intended dosage.",
+    "IEP students attend at 68.4% — well below the 80% minimum that Vaughn et al. identify as necessary to realize the full intensive-intervention effect — making IEP attendance the most actionable predictor of subgroup effectiveness."
+  ],
+  "limitations": [
+    "The research references cited (R1, R10) were conducted in different program contexts; effect-size estimates may not transfer directly to this cohort's demographic and instructional configuration.",
+    "Dosage is measured in minutes per week as reported in program_context.json; actual instructional time within sessions may vary and is not captured in the available data.",
+    "This analysis ranks predictors based on alignment between local data and cited benchmarks, not on a causal model fitted to this program's outcomes."
+  ],
+  "evidence_citations": [
+    {
+      "citation_text": "program_context.json tutoring_minutes_per_week=135 compared to research_refs.json R1 high-dosage threshold",
+      "source_file": "program_context.json",
+      "source_column": "tutoring_minutes_per_week",
+      "grounded": null
+    },
+    {
+      "citation_text": "subgroup_attendance_summary.csv IEP attendance rate 68.4% vs Vaughn et al. (R10) 80% minimum threshold",
+      "source_file": "subgroup_attendance_summary.csv",
+      "source_column": "attendance_rate",
+      "grounded": null
+    }
+  ],
+  "runtime_metadata": {
+    "adapter_version": "0.1.0",
+    "timestamp_utc": "2026-06-01T09:04:00Z",
+    "latency_ms": 1.0,
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "model_temperature": null,
+    "provider": "stub",
+    "pack_id": "pack_equity_research"
+  }
+}

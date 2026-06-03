@@ -1,0 +1,40 @@
+{
+  "task_id": "T2-OUT-001",
+  "model_id": "stub/echo-v1",
+  "run_index": 0,
+  "structured_metrics": {
+    "f1_value": 0.7871,
+    "f2_value": 0.8199,
+    "f3_value": 0.8209,
+    "f4_value": 0.0328,
+    "f5_value": 0.001
+  },
+  "key_findings": [
+    "Program-wide attendance improved from 78.71% in September to 81.99% in October (+3.28 pp), then held nearly flat at 82.09% in November (+0.10 pp).",
+    "The September-to-October gain was meaningful, but the near-flat October-to-November movement means the overall trend is non-monotonic, not a steady upward progression.",
+    "The program fell below its 80% attendance goal in September but exceeded it by October and held above it in November."
+  ],
+  "limitations": [
+    "The monthly rates are student-level attendance records aggregated across three schools; school-level variation may differ from the program-wide figure.",
+    "Two months of post-baseline data is insufficient to establish a reliable trend; the near-flat Oct-to-Nov change could reflect seasonal factors, schedule changes, or sampling noise.",
+    "No causal inference is possible from attendance trend data alone."
+  ],
+  "evidence_citations": [
+    {
+      "citation_text": "ground_truth.json monthly_attendance_rate keys for September, October, and November 2025",
+      "source_file": "ground_truth.json",
+      "source_column": "monthly_attendance_rate",
+      "grounded": null
+    }
+  ],
+  "runtime_metadata": {
+    "adapter_version": "0.1.0",
+    "timestamp_utc": "2026-06-01T09:01:00Z",
+    "latency_ms": 1.0,
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "model_temperature": null,
+    "provider": "stub",
+    "pack_id": "pack_outcomes"
+  }
+}

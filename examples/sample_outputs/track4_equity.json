@@ -1,0 +1,44 @@
+{
+  "task_id": "T4-EQU-001",
+  "model_id": "stub/echo-v1",
+  "run_index": 0,
+  "structured_metrics": {
+    "f1_value": 0.6839,
+    "f2_value": 0.8243,
+    "f3_value": 14.04
+  },
+  "key_findings": [
+    "Students with an IEP designation attend at approximately 68.4% across the Q1 quarter, compared to 82.4% for non-IEP students — a gap of 14.0 percentage points.",
+    "The 14 pp gap substantially exceeds the program's stated equity goal of reducing the IEP attendance gap to 5 percentage points or fewer.",
+    "IEP students represent approximately 11% of enrollment (14 of 127 students in the summary) but account for a disproportionate share of absences."
+  ],
+  "limitations": [
+    "The IEP subgroup is small (n=14 in the summary data); individual absences by one or two students can shift the group rate by several percentage points, so this figure should be treated as directionally informative.",
+    "IEP status is a binary flag and does not capture the type or severity of individual needs, limiting identification of which student profiles are driving the attendance gap.",
+    "The analysis does not control for school or grade-level effects that may be correlated with IEP status in this cohort."
+  ],
+  "evidence_citations": [
+    {
+      "citation_text": "subgroup_attendance_summary.csv rows where subgroup_dimension='iep_status', iep=true/false",
+      "source_file": "subgroup_attendance_summary.csv",
+      "source_column": "attendance_rate",
+      "grounded": null
+    },
+    {
+      "citation_text": "ground_truth.json iep_attendance_gap confirming 14.04 pp gap",
+      "source_file": "ground_truth.json",
+      "source_column": "iep_attendance_gap",
+      "grounded": null
+    }
+  ],
+  "runtime_metadata": {
+    "adapter_version": "0.1.0",
+    "timestamp_utc": "2026-06-01T09:03:00Z",
+    "latency_ms": 1.0,
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "model_temperature": null,
+    "provider": "stub",
+    "pack_id": "pack_equity_research"
+  }
+}
