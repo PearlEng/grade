@@ -123,16 +123,23 @@ class TestBuildPromptFixtureEmbedding:
         prompt = _build_prompt(task)
         assert _MINIMAL_TASK["user_prompt"] in prompt
 
-    def test_structured_output_instructions_present(self) -> None:
-        """The structured-output section headers must appear regardless of fixtures."""
+    def test_prose_first_instructions_present(self) -> None:
+        """The prose-first output guidance must appear regardless of fixtures.
+
+        The prompt now instructs the model to write natural analysis rather than
+        requiring rigid structured sections.  The old mandatory ``## Key Findings``
+        and ``## Structured Metrics`` headers are replaced by a suggestion-based
+        structure with prose-first framing.
+        """
         task: dict[str, Any] = {
             **_MINIMAL_TASK,
             "fixtures": {"students.csv": "col\nval\n"},
         }
         prompt = _build_prompt(task)
-        assert "## Key Findings" in prompt
-        assert "## Limitations" in prompt
-        assert "## Structured Metrics" in prompt
+        # Prose-first instruction language must be present.
+        assert "natural analysis" in prompt or "plain prose" in prompt
+        # The suggested (optional) structure should still reference common topics.
+        assert "caveats" in prompt or "limitations" in prompt or "Suggested structure" in prompt
 
     def test_missing_fixture_file_noted_in_prompt(self) -> None:
         """If a file in allowed_inputs is absent from fixtures, it must be noted."""

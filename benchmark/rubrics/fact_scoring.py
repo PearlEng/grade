@@ -50,6 +50,43 @@ When a match is made via the ``/100`` path the ``method`` label in
 match source traceable (e.g.
 ``"numeric_absolute(0.0005)[key_findings+percent_normalized]"``).
 
+Leniency floor for prose-first grading
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When models write natural prose (rather than rigid structured output) they
+naturally express rates and counts with conversational rounding — e.g.
+"about 82%" for a gold value of 0.8236, or "around 133 students" for a gold
+count of 135.  A gold fact's authored ``tolerance`` may be too tight for this
+realistic variation.
+
+Two named floor constants define the **minimum** tolerance that is always
+applied, regardless of the authored value:
+
+- :data:`RATE_TOLERANCE_FLOOR` (``0.01``, i.e. 1 percentage point): applied
+  when the gold value ``G`` satisfies ``0 < G < 1`` (a rate/fraction).
+  Effective tolerance = ``max(authored_tolerance, RATE_TOLERANCE_FLOOR)``.
+
+- :data:`COUNT_RELATIVE_FLOOR` (``0.02``, i.e. 2%): applied when ``G >= 1``
+  (a count or magnitude).  The floor is ``COUNT_RELATIVE_FLOOR * abs(G)``,
+  so for a gold count of 135 the minimum window is ±2.7 (i.e. values 132–138
+  are always credited).  Effective tolerance =
+  ``max(authored_absolute_tolerance, COUNT_RELATIVE_FLOOR * abs(G))``.
+
+The floor is **only a floor** — it loosens tight tolerances but never
+tightens a generous one.  It is applied inside :func:`score_fact` before
+delegating to :func:`_find_predicted_numeric`, which means all match paths
+(structured_metrics, key_findings, limitations, and the /100 percent-
+normalized path) benefit from the lenient tolerance automatically.
+
+False-positive guard
+''''''''''''''''''''
+The floor values are deliberately conservative so that clearly wrong answers
+are still rejected:
+
+- A rate of 0.70 (70%) is **not** credited for a gold of 0.8236 (82.4%)
+  because |0.70 − 0.8236| = 0.1236 >> 0.01.
+- A count of 200 is **not** credited for a gold of 135 because
+  |200 − 135| = 65 >> 0.02 × 135 ≈ 2.7.
+
 **Non-numeric gold facts** (``numeric_value`` is None):
 
 Scans ``key_findings`` text (and ``limitations``) for the claim via normalized
@@ -87,6 +124,8 @@ __all__ = [
     "GoldFact",
     "FactScoreResult",
     "FactDetail",
+    "RATE_TOLERANCE_FLOOR",
+    "COUNT_RELATIVE_FLOOR",
     "score_numeric",
     "score_exact_match",
     "score_date_range",
@@ -94,6 +133,28 @@ __all__ = [
     "score_fact",
     "score_facts",
 ]
+
+# ---------------------------------------------------------------------------
+# Leniency-floor constants
+# ---------------------------------------------------------------------------
+
+#: Minimum absolute tolerance for **rate/fraction** gold facts (``0 < G < 1``).
+#:
+#: Natural-prose responses round rates conversationally — "about 82%" vs a gold
+#: of 0.8236.  A floor of 1 percentage point (0.01 on the fraction scale) ensures
+#: such phrasing is credited without accepting clearly wrong answers (e.g. 70%
+#: for a true 82% is still rejected since |0.70 − 0.8236| = 0.1236 >> 0.01).
+RATE_TOLERANCE_FLOOR: float = 0.01
+
+#: Minimum relative tolerance for **count/magnitude** gold facts (``G >= 1``),
+#: expressed as a fraction of the gold value.
+#:
+#: Applied as ``COUNT_RELATIVE_FLOOR * abs(gold)`` to derive an absolute floor.
+#: A 2% window on a gold count of 135 allows values 132–138, accommodating
+#: phrasing like "approximately 133 students" without crediting clearly wrong
+#: answers (e.g. 200 for a true 135 is still rejected since |200 − 135| = 65
+#: >> 0.02 × 135 ≈ 2.7).
+COUNT_RELATIVE_FLOOR: float = 0.02
 
 # ---------------------------------------------------------------------------
 # Data classes
@@ -624,7 +685,29 @@ def score_fact(
     lims: list[str] = limitations if limitations is not None else []
 
     if gold_fact.numeric_value is not None:
-        tolerance: float | str = gold_fact.tolerance if gold_fact.tolerance is not None else 0.0
+        authored: float | str = gold_fact.tolerance if gold_fact.tolerance is not None else 0.0
+        gold_val: float = gold_fact.numeric_value
+
+        # Apply leniency floor: loosen tight authored tolerances so that
+        # prose rounding ("about 82%", "around 133 students") is credited.
+        # The floor is a *minimum* — it never tightens a generous tolerance.
+        if isinstance(authored, str):
+            # Relative string tolerance (e.g. "5%"): leave unchanged; the
+            # relative form already expresses a proportional window.
+            tolerance: float | str = authored
+        else:
+            authored_abs: float = float(authored)
+            if 0 < gold_val < 1:
+                # Rate/fraction: floor is 1 percentage point on the fraction scale.
+                effective: float = max(authored_abs, RATE_TOLERANCE_FLOOR)
+            elif gold_val >= 1:
+                # Count/magnitude: floor is 2% of the gold value.
+                effective = max(authored_abs, COUNT_RELATIVE_FLOOR * abs(gold_val))
+            else:
+                # gold_val <= 0: no floor adjustment (unusual; keep authored).
+                effective = authored_abs
+            tolerance = effective
+
         method_label = (
             f"numeric_relative({tolerance})"
             if isinstance(tolerance, str)
