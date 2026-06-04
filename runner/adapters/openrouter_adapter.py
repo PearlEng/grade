@@ -59,7 +59,7 @@ import json
 import os
 import re
 import time
-from typing import Any
+from typing import Any, Literal, overload
 
 #: Adapter semantic version — recorded in every output's ``runtime_metadata``.
 ADAPTER_VERSION: str = "0.1.0"
@@ -625,6 +625,40 @@ class ChatCompletionUsage:
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens
         self.cost_usd = cost_usd
+
+
+@overload
+def post_chat_completion(
+    messages: list[dict[str, str]],
+    model: str,
+    temperature: float = ...,
+    max_tokens: int = ...,
+    api_key: str | None = ...,
+    return_usage: Literal[False] = ...,
+) -> str: ...
+
+
+@overload
+def post_chat_completion(
+    messages: list[dict[str, str]],
+    model: str,
+    temperature: float = ...,
+    max_tokens: int = ...,
+    api_key: str | None = ...,
+    *,
+    return_usage: Literal[True],
+) -> tuple[str, ChatCompletionUsage]: ...
+
+
+@overload
+def post_chat_completion(
+    messages: list[dict[str, str]],
+    model: str,
+    temperature: float = ...,
+    max_tokens: int = ...,
+    api_key: str | None = ...,
+    return_usage: bool = ...,
+) -> str | tuple[str, ChatCompletionUsage]: ...
 
 
 def post_chat_completion(

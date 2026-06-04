@@ -275,7 +275,7 @@ class JudgeClient:
             return_usage=True,
         )
         # post_chat_completion with return_usage=True always returns a tuple.
-        raw, usage = result  # type: ignore[misc]
+        raw, usage = result
         raw = raw.strip()
 
         # Accumulate usage into instance state.
