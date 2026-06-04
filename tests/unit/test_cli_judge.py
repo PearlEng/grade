@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,15 +25,15 @@ def test_judge_flag_parses_true() -> None:
 def test_main_passes_live_judge_to_run_task(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """--judge builds a JudgeClient and threads it into run_task."""
+    """--judge builds a JudgeClient and threads it into run_pack as judge_client."""
     captured: dict[str, object | None] = {}
 
-    def fake_run_task(**kwargs: object) -> object:
+    def fake_run_pack(**kwargs: Any) -> dict[str, Any]:
         captured["judge_client"] = kwargs.get("judge_client")
-        raise RuntimeError("stop-after-capture")  # main catches -> returns 1
+        raise RuntimeError("stop-after-capture")  # cli.main catches -> returns 1
 
     sentinel = object()
-    monkeypatch.setattr(cli, "run_task", fake_run_task)
+    monkeypatch.setattr(cli, "run_pack", fake_run_pack)
     monkeypatch.setattr("benchmark.rubrics.judge_client.JudgeClient", lambda: sentinel)
 
     rc = cli.main(
@@ -53,14 +54,14 @@ def test_main_passes_live_judge_to_run_task(
 
 
 def test_main_uses_null_judge_without_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Without --judge, run_task receives judge_client=None (dispatcher uses null judge)."""
+    """Without --judge, run_pack receives judge_client=None (dispatcher uses null judge)."""
     captured: dict[str, object | None] = {}
 
-    def fake_run_task(**kwargs: object) -> object:
+    def fake_run_pack(**kwargs: Any) -> dict[str, Any]:
         captured["judge_client"] = kwargs.get("judge_client")
         raise RuntimeError("stop-after-capture")
 
-    monkeypatch.setattr(cli, "run_task", fake_run_task)
+    monkeypatch.setattr(cli, "run_pack", fake_run_pack)
     rc = cli.main(
         ["--pack", "operations", "--adapter", "stub", "--runs", "1", "--out", str(tmp_path)]
     )
