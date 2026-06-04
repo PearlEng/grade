@@ -604,13 +604,37 @@ def _make_openrouter_http_client(api_key: str | None = None) -> Any:
     )
 
 
+class ChatCompletionUsage:
+    """Lightweight container for usage/cost data from a single chat-completion call.
+
+    Attributes:
+        prompt_tokens: Number of prompt tokens, or ``None`` if not reported.
+        completion_tokens: Number of completion tokens, or ``None`` if not
+            reported.
+        cost_usd: Call cost in USD, or ``None`` if not reported by the provider.
+    """
+
+    __slots__ = ("prompt_tokens", "completion_tokens", "cost_usd")
+
+    def __init__(
+        self,
+        prompt_tokens: int | None,
+        completion_tokens: int | None,
+        cost_usd: float | None,
+    ) -> None:
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.cost_usd = cost_usd
+
+
 def post_chat_completion(
     messages: list[dict[str, str]],
     model: str,
     temperature: float = 0.0,
     max_tokens: int = 16,
     api_key: str | None = None,
-) -> str:
+    return_usage: bool = False,
+) -> str | tuple[str, ChatCompletionUsage]:
     """Send a chat-completion request to OpenRouter and return the response text.
 
     Convenience function used by :mod:`benchmark.rubrics.judge_client` so that
@@ -629,9 +653,16 @@ def post_chat_completion(
         temperature: Sampling temperature.
         max_tokens: Maximum tokens in the response.
         api_key: Optional API key; falls back to ``OPENROUTER_API_KEY`` env var.
+        return_usage: When ``True``, return a ``(text, ChatCompletionUsage)``
+            tuple instead of just the response text.  Existing callers that do
+            not pass this flag are unaffected (backward-compatible).
 
     Returns:
-        The model's response text (first choice content).
+        When *return_usage* is ``False`` (default): the model's response text.
+        When *return_usage* is ``True``: a ``(text, ChatCompletionUsage)`` tuple
+        where :class:`ChatCompletionUsage` holds ``prompt_tokens``,
+        ``completion_tokens``, and ``cost_usd`` (any may be ``None`` when the
+        provider does not report them).
 
     Raises:
         EnvironmentError: If no API key is available.
@@ -687,7 +718,27 @@ def post_chat_completion(
         )
 
     body: dict[str, Any] = response.json()
-    return str(body["choices"][0]["message"]["content"] or "")
+    text = str(body["choices"][0]["message"]["content"] or "")
+
+    if not return_usage:
+        return text
+
+    # Extract usage from the response body for callers that opt in.
+    usage_raw: dict[str, Any] = body.get("usage", {})
+    prompt_tokens: int | None = usage_raw.get("prompt_tokens")
+    completion_tokens: int | None = usage_raw.get("completion_tokens")
+    cost_usd: float | None = None
+    if "cost" in usage_raw:
+        try:
+            cost_usd = float(usage_raw["cost"])
+        except (TypeError, ValueError):
+            cost_usd = None
+
+    return text, ChatCompletionUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        cost_usd=cost_usd,
+    )
 
 
 # ---------------------------------------------------------------------------

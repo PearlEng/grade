@@ -353,11 +353,25 @@ def main(argv: list[str] | None = None) -> int:
     # Determine effective model_id.
     effective_model_id: str = args.model_id or model_id_from_adapter or adapter.name
 
+    # --- Collect judge-client accumulated cost (None when no judge was used) ---
+    judge_metrics_dict: dict | None = None
+    if judge_client is not None:
+        from benchmark.rubrics.judge_client import JudgeClient as _JC
+
+        if isinstance(judge_client, _JC):
+            judge_metrics_dict = {
+                "cumulative_cost_usd": judge_client.cumulative_cost_usd,
+                "cumulative_prompt_tokens": judge_client.cumulative_prompt_tokens,
+                "cumulative_completion_tokens": judge_client.cumulative_completion_tokens,
+                "judge_call_count": judge_client.judge_call_count,
+            }
+
     # --- Aggregate (over successful tasks only) ---
     scorecard = aggregate(
         task_results=task_results,
         model_id=effective_model_id,
         grade_version=args.grade_version,
+        judge_metrics=judge_metrics_dict,
     )
 
     # --- Write outputs ---
