@@ -216,9 +216,24 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "model_cost_usd": {
+          "type": ["number", "null"],
+          "description": "HEADLINE leaderboard figure: test-model inference cost only. Sum of per-call cost_usd from the model under test. Null when no call reported cost (cost_available=false). Use this field for cross-model comparisons.",
+          "minimum": 0.0
+        },
         "total_cost_usd": {
           "type": ["number", "null"],
-          "description": "Sum of per-call cost_usd across all runs and tasks. Null when no call reported cost (cost_available=false).",
+          "description": "Legacy alias for model_cost_usd. Identical value; preserved for backward compatibility.",
+          "minimum": 0.0
+        },
+        "judge_cost_usd": {
+          "type": ["number", "null"],
+          "description": "Evaluation overhead: accumulated cost of all judge-model (Opus) calls made during this run. Null when --judge was not used or the provider did not report cost.",
+          "minimum": 0.0
+        },
+        "total_eval_cost_usd": {
+          "type": ["number", "null"],
+          "description": "model_cost_usd + judge_cost_usd when both are available; best-effort partial sum otherwise; null if neither is available.",
           "minimum": 0.0
         },
         "cost_available": {

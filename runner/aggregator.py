@@ -52,12 +52,30 @@ TRACK_NAMES: dict[int, str] = {
 
 def aggregate_cost_metrics(
     task_results: list[TaskRunResult],
+    judge_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Collect and aggregate API cost, token counts, and latency from task outputs.
 
     Iterates over every per-run output stored in each :class:`TaskRunResult` and
     reads ``cost_usd``, ``prompt_tokens``, ``completion_tokens``, and
     ``latency_ms`` from each output's ``runtime_metadata``.
+
+    Cost split — test-model vs judge overhead
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    The result now carries **three** cost fields:
+
+    - ``model_cost_usd`` — test-model inference cost only.  This is the
+      **headline leaderboard number** — it reflects the cost of the model
+      under test, not GRADE's evaluation infrastructure.
+    - ``judge_cost_usd`` — accumulated judge (Opus) overhead across all
+      :meth:`~benchmark.rubrics.judge_client.JudgeClient.judge` calls.
+      ``None`` when ``--judge`` was not used or the provider never reported
+      cost.
+    - ``total_eval_cost_usd`` — ``model_cost_usd + judge_cost_usd`` when
+      both are available; otherwise the best-effort partial sum or ``None``.
+
+    The legacy ``total_cost_usd`` key is kept as an alias for
+    ``model_cost_usd`` to avoid breaking existing callers that read it.
 
     Cost handling
     ~~~~~~~~~~~~~
@@ -66,9 +84,9 @@ def aggregate_cost_metrics(
     from "cost not reported", this function tracks whether *any* output in the
     batch had a non-None ``cost_usd``:
 
-    - If **no** output reported cost → ``total_cost_usd`` is ``None`` and
+    - If **no** output reported cost → ``model_cost_usd`` is ``None`` and
       ``cost_available`` is ``False``.
-    - If **some but not all** outputs reported cost → ``total_cost_usd`` is the
+    - If **some but not all** outputs reported cost → ``model_cost_usd`` is the
       sum of the available values, ``cost_available`` is ``True``, and
       ``cost_partial`` is ``True`` (a warning flag).
     - If **all** outputs reported cost → ``cost_available`` is ``True``,
@@ -87,14 +105,23 @@ def aggregate_cost_metrics(
 
     Args:
         task_results: List of :class:`~runner.dispatcher.TaskRunResult` objects.
+        judge_metrics: Optional dict of accumulated judge-client totals, keyed
+            by ``"cumulative_cost_usd"``, ``"cumulative_prompt_tokens"``,
+            ``"cumulative_completion_tokens"``, and ``"judge_call_count"``.
+            Pass ``None`` (the default) when no live judge was used.
 
     Returns:
         A dict with the following keys:
 
-        - ``total_cost_usd`` (``float | None``): Summed cost in USD, or ``None``
-          if no cost data was available.
-        - ``cost_available`` (``bool``): ``True`` if at least one output had a
-          non-None ``cost_usd``.
+        - ``model_cost_usd`` (``float | None``): Test-model inference cost —
+          **the headline leaderboard figure**.  Alias ``total_cost_usd`` points
+          to the same value.
+        - ``judge_cost_usd`` (``float | None``): Accumulated judge-model
+          overhead.  ``None`` if no judge was used or cost not reported.
+        - ``total_eval_cost_usd`` (``float | None``): Sum of ``model_cost_usd``
+          and ``judge_cost_usd`` when both are available.
+        - ``cost_available`` (``bool``): ``True`` if at least one model output
+          had a non-None ``cost_usd``.
         - ``cost_partial`` (``bool``): ``True`` if cost data was missing for at
           least one output in a batch where other outputs *did* have cost data.
         - ``total_prompt_tokens`` (``int``): Summed prompt token count (0 when
@@ -117,9 +144,9 @@ def aggregate_cost_metrics(
 
         metrics = aggregate_cost_metrics(task_results)
         if metrics["cost_available"]:
-            print(f"Total cost: ${metrics['total_cost_usd']:.5f}")
-        else:
-            print("Cost not reported by adapter/provider.")
+            print(f"Model cost (headline): ${metrics['model_cost_usd']:.5f}")
+        if metrics["judge_cost_usd"] is not None:
+            print(f"Judge overhead: ${metrics['judge_cost_usd']:.5f}")
     """
     all_latencies: list[float] = []
     total_prompt_tokens: int = 0
@@ -179,9 +206,9 @@ def aggregate_cost_metrics(
             "mean_latency_ms": task_mean_latency,
         }
 
-    # Global totals.
+    # Global totals — test-model cost is the headline.
     cost_available: bool = len(cost_values) > 0
-    total_cost_usd: float | None = sum(cost_values) if cost_available else None
+    model_cost_usd: float | None = sum(cost_values) if cost_available else None
     cost_partial: bool = cost_available and cost_missing_count > 0
 
     mean_latency_ms: float | None = (
@@ -201,8 +228,29 @@ def aggregate_cost_metrics(
             p50_latency_ms = (sorted_lats[mid - 1] + sorted_lats[mid]) / 2
         max_latency_ms = sorted_lats[-1]
 
+    # Judge-overhead cost from the optional judge_metrics dict.
+    judge_cost_usd: float | None = None
+    if judge_metrics is not None:
+        judge_cost_usd = judge_metrics.get("cumulative_cost_usd")
+
+    # total_eval_cost_usd = model + judge when both present; best-effort otherwise.
+    total_eval_cost_usd: float | None = None
+    if model_cost_usd is not None and judge_cost_usd is not None:
+        total_eval_cost_usd = model_cost_usd + judge_cost_usd
+    elif model_cost_usd is not None:
+        total_eval_cost_usd = model_cost_usd
+    elif judge_cost_usd is not None:
+        total_eval_cost_usd = judge_cost_usd
+
     return {
-        "total_cost_usd": total_cost_usd,
+        # Headline test-model cost (leaderboard figure).
+        "model_cost_usd": model_cost_usd,
+        # Legacy alias — existing callers reading total_cost_usd still work.
+        "total_cost_usd": model_cost_usd,
+        # Judge evaluation overhead.
+        "judge_cost_usd": judge_cost_usd,
+        # Combined eval cost (model + judge).
+        "total_eval_cost_usd": total_eval_cost_usd,
         "cost_available": cost_available,
         "cost_partial": cost_partial,
         "total_prompt_tokens": total_prompt_tokens,
@@ -260,6 +308,7 @@ def aggregate(
     model_id: str,
     grade_version: str = "0.1.0",
     result_id: str | None = None,
+    judge_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble per-task results into a ``result_schema.json``-shaped scorecard.
 
@@ -273,10 +322,18 @@ def aggregate(
             ``"0.1.0"``.
         result_id: Unique identifier for this result record.  If ``None``,
             a random UUID is generated.
+        judge_metrics: Optional dict of accumulated judge-client totals (from
+            :class:`~benchmark.rubrics.judge_client.JudgeClient` instance
+            state after the run), keyed by ``"cumulative_cost_usd"``,
+            ``"cumulative_prompt_tokens"``, ``"cumulative_completion_tokens"``,
+            and ``"judge_call_count"``.  Pass ``None`` (default) when no live
+            judge was used — ``judge_cost_usd`` will be ``None`` in that case.
 
     Returns:
         A dict conforming to ``result_schema.json`` with all required and
-        optional aggregate fields populated.
+        optional aggregate fields populated.  The ``cost_metrics`` sub-dict
+        contains separate ``model_cost_usd`` (headline), ``judge_cost_usd``,
+        and ``total_eval_cost_usd`` fields.
 
     Raises:
         ValueError: If *task_results* is empty.
@@ -285,6 +342,18 @@ def aggregate(
 
         scorecard = aggregate(task_results, model_id="stub/echo-v1")
         validate_result(scorecard)
+
+        # With a live judge:
+        scorecard = aggregate(
+            task_results,
+            model_id="stub/echo-v1",
+            judge_metrics={
+                "cumulative_cost_usd": judge_client.cumulative_cost_usd,
+                "cumulative_prompt_tokens": judge_client.cumulative_prompt_tokens,
+                "cumulative_completion_tokens": judge_client.cumulative_completion_tokens,
+                "judge_call_count": judge_client.judge_call_count,
+            },
+        )
     """
     if not task_results:
         raise ValueError("task_results must not be empty")
@@ -346,7 +415,7 @@ def aggregate(
     all_scores = [tr.scores for tr in task_results]
     overall = mean_scores(all_scores)
 
-    cost_metrics = aggregate_cost_metrics(task_results)
+    cost_metrics = aggregate_cost_metrics(task_results, judge_metrics=judge_metrics)
 
     return {
         "result_id": rid,

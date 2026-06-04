@@ -179,6 +179,19 @@ class JudgeClient:
     **Not used in CI** — tests inject a mock judge.  See module docstring for
     live-judge usage instructions.
 
+    Accumulated cost tracking
+    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    Each :meth:`judge` call updates the following instance attributes so that
+    the single :class:`JudgeClient` passed through a full benchmark run totals
+    all judge-model API overhead:
+
+    - :attr:`cumulative_cost_usd` (``float | None``): total USD across all
+      :meth:`judge` calls; ``None`` if the provider has never reported cost.
+    - :attr:`cumulative_prompt_tokens` (``int``): total prompt tokens (0 if
+      never reported).
+    - :attr:`cumulative_completion_tokens` (``int``): total completion tokens.
+    - :attr:`judge_call_count` (``int``): number of :meth:`judge` calls made.
+
     Args:
         api_key: OpenRouter API key.  If *None*, falls back to the
             ``OPENROUTER_API_KEY`` environment variable.
@@ -191,6 +204,7 @@ class JudgeClient:
 
         client = JudgeClient(api_key="sk-or-...")
         score = client.judge("grounding_accuracy", "", task, model_output)
+        print(client.cumulative_cost_usd)
     """
 
     def __init__(
@@ -211,6 +225,17 @@ class JudgeClient:
         self._model = model
         self._max_tokens = max_tokens
 
+        # Accumulated judge-cost state — updated after every judge() call.
+        #: Total cost in USD across all judge() calls; None until the provider
+        #: reports at least one cost value.
+        self.cumulative_cost_usd: float | None = None
+        #: Total prompt tokens across all judge() calls (0 if never reported).
+        self.cumulative_prompt_tokens: int = 0
+        #: Total completion tokens across all judge() calls (0 if never reported).
+        self.cumulative_completion_tokens: int = 0
+        #: Number of judge() calls made since this instance was created.
+        self.judge_call_count: int = 0
+
     def judge(
         self,
         dimension: str,
@@ -221,7 +246,10 @@ class JudgeClient:
         """Call the judge model to score one rubric dimension.
 
         Uses :func:`runner.adapters.openrouter_adapter.post_chat_completion`
-        so that the HTTP logic lives in one place.
+        so that the HTTP logic lives in one place.  Each call accumulates
+        usage/cost into the instance-level counters
+        (:attr:`cumulative_cost_usd`, :attr:`cumulative_prompt_tokens`,
+        :attr:`cumulative_completion_tokens`, :attr:`judge_call_count`).
 
         Args:
             dimension: The rubric dimension name.
@@ -238,14 +266,27 @@ class JudgeClient:
         from runner.adapters.openrouter_adapter import post_chat_completion
 
         prompt = _build_judge_prompt(dimension, guidance, task, model_output)
-        raw = post_chat_completion(
+        result = post_chat_completion(
             messages=[{"role": "user", "content": prompt}],
             model=self._model,
             temperature=0.0,
             max_tokens=self._max_tokens,
             api_key=self._api_key,
+            return_usage=True,
         )
+        # post_chat_completion with return_usage=True always returns a tuple.
+        raw, usage = result
         raw = raw.strip()
+
+        # Accumulate usage into instance state.
+        self.judge_call_count += 1
+        if usage.cost_usd is not None:
+            self.cumulative_cost_usd = (self.cumulative_cost_usd or 0.0) + usage.cost_usd
+        if usage.prompt_tokens is not None:
+            self.cumulative_prompt_tokens += usage.prompt_tokens
+        if usage.completion_tokens is not None:
+            self.cumulative_completion_tokens += usage.completion_tokens
+
         try:
             score = float(raw)
         except ValueError:

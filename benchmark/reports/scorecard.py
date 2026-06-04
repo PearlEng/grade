@@ -317,16 +317,24 @@ def _build_cost_speed_section(cost_metrics: dict[str, Any] | None) -> str:
     feature was added), a brief "not available" notice is returned so the
     section is still present and parseable in old reports.
 
+    Layout
+    ~~~~~~
+    The section **leads with the test-model cost** (``model_cost_usd``) — the
+    headline leaderboard figure that reflects the model under test, not
+    GRADE's evaluation infrastructure.  Judge overhead (``judge_cost_usd``) and
+    the combined ``total_eval_cost_usd`` are shown as a clearly-labeled
+    secondary "Evaluation overhead (judge)" block.
+
     Cost-efficiency formula
     ~~~~~~~~~~~~~~~~~~~~~~~
-    When cost data is available:
+    When model cost is available:
 
         cost_efficiency = composite_points_per_dollar
-                        = overall_composite * 100 / total_cost_usd
+                        = overall_composite * 100 / model_cost_usd
 
     This answers "how many composite percentage-points did we buy per US
-    dollar?".  A higher number is better (more accuracy/consistency per cent
-    spent).
+    dollar of test-model cost?".  A higher number is better.  Leaderboard
+    comparisons ALWAYS use ``model_cost_usd``, not ``total_eval_cost_usd``.
 
     When cost is absent but token counts are available (tokens_available=True),
     a token-based proxy is used instead:
@@ -351,18 +359,43 @@ def _build_cost_speed_section(cost_metrics: dict[str, Any] | None) -> str:
 
     lines: list[str] = []
 
-    # --- Cost ---
+    # --- Test-model cost (HEADLINE) ---
     cost_available: bool = cost_metrics.get("cost_available", False)
-    total_cost: float | None = cost_metrics.get("total_cost_usd")
+    # Prefer the explicit model_cost_usd; fall back to total_cost_usd for
+    # scorecards produced by older GRADE versions that lack the new field.
+    model_cost: float | None = cost_metrics.get("model_cost_usd") or cost_metrics.get(
+        "total_cost_usd"
+    )
     cost_partial: bool = cost_metrics.get("cost_partial", False)
 
-    if cost_available and total_cost is not None:
-        cost_str = f"${total_cost:.5f}"
+    if cost_available and model_cost is not None:
+        cost_str = f"${model_cost:.5f}"
         if cost_partial:
             cost_str += " _(partial — some calls did not report cost)_"
-        lines.append(f"**Total API Cost:** {cost_str}")
+        lines.append(f"**Model Cost (test model):** {cost_str}")
     else:
-        lines.append("**Total API Cost:** not reported")
+        lines.append("**Model Cost (test model):** not reported")
+
+    # --- Judge / eval overhead (secondary) ---
+    judge_cost: float | None = cost_metrics.get("judge_cost_usd")
+    total_eval_cost: float | None = cost_metrics.get("total_eval_cost_usd")
+
+    if judge_cost is not None:
+        lines.append(
+            f"**Evaluation overhead (judge):** ${judge_cost:.5f}"
+            f"  _(not used for leaderboard comparisons)_"
+        )
+        if total_eval_cost is not None:
+            lines.append(f"**Total Eval Cost (model + judge):** ${total_eval_cost:.5f}")
+    else:
+        lines.append(
+            "**Evaluation overhead (judge):** not reported"
+            "  _(not used for leaderboard comparisons)_"
+        )
+
+    lines.append(
+        "_Note: leaderboard comparisons use test-model cost only, not evaluation overhead._"
+    )
 
     # --- Tokens ---
     tokens_available: bool = cost_metrics.get("tokens_available", False)
@@ -406,8 +439,13 @@ def _build_cost_efficiency_note(
 
     Formula (see :func:`_build_cost_speed_section` for rationale):
 
-    - **cost_efficiency** (when cost is available):
-      ``overall_composite × 100 / total_cost_usd``
+    - **cost_efficiency** (when model cost is available):
+      ``overall_composite × 100 / model_cost_usd``
+
+      This uses ``model_cost_usd`` (the test-model headline figure), NOT
+      ``total_eval_cost_usd``, so leaderboard comparisons are fair across
+      runs with and without a live judge.
+
     - **token_efficiency** (when tokens available but cost absent):
       ``overall_composite × 100 / (total_tokens / 1000)``
 
@@ -426,13 +464,19 @@ def _build_cost_efficiency_note(
         return ""
 
     cost_available: bool = cost_metrics.get("cost_available", False)
-    total_cost: float | None = cost_metrics.get("total_cost_usd")
+    # Use model_cost_usd as the headline; fall back to total_cost_usd for older results.
+    model_cost: float | None = cost_metrics.get("model_cost_usd") or cost_metrics.get(
+        "total_cost_usd"
+    )
     tokens_available: bool = cost_metrics.get("tokens_available", False)
     total_tokens: int = cost_metrics.get("total_tokens", 0)
 
-    if cost_available and total_cost and total_cost > 0:
-        efficiency = (composite * 100) / total_cost
-        return f"\n**Cost-Efficiency:** {efficiency:.1f} composite pts / US$\n"
+    if cost_available and model_cost and model_cost > 0:
+        efficiency = (composite * 100) / model_cost
+        return (
+            f"\n**Cost-Efficiency (model cost):** {efficiency:.1f} composite pts / US$"
+            f"  _(based on test-model cost; leaderboard metric)_\n"
+        )
 
     if tokens_available and total_tokens > 0:
         efficiency_per_ktok = (composite * 100) / (total_tokens / 1000)

@@ -835,9 +835,12 @@ class TestTemperatureDefaults:
             },
         }
 
+        from runner.adapters.openrouter_adapter import ChatCompletionUsage
+
+        _usage = ChatCompletionUsage(prompt_tokens=10, completion_tokens=2, cost_usd=None)
         with patch(
             "runner.adapters.openrouter_adapter.post_chat_completion",
-            return_value="0.85",
+            return_value=("0.85", _usage),
         ) as mock_pcc:
             client = JudgeClient(api_key="sk-or-test")
             score = client.judge("grounding_accuracy", "", _VALID_TASK, _VALID_OUTPUT)
@@ -849,6 +852,11 @@ class TestTemperatureDefaults:
             "Judge must always call post_chat_completion with temperature=0.0 "
             "to stay deterministic; got temperature="
             f"{call_kwargs['temperature']!r}"
+        )
+        # Verify return_usage=True was passed so cost accumulation works.
+        assert call_kwargs.get("return_usage") is True, (
+            "JudgeClient must pass return_usage=True to post_chat_completion "
+            "to enable cost accumulation."
         )
 
 
