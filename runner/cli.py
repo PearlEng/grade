@@ -47,16 +47,14 @@ Usage examples::
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 from runner.adapters.base import Adapter
 from runner.adapters.openrouter_adapter import OpenRouterAdapter
 from runner.adapters.stub_adapter import StubAdapter
-from runner.aggregator import aggregate
-from runner.dispatcher import TaskRunResult, load_pack, run_task
-from runner.io import write_raw_outputs, write_result
+from runner.dispatcher import load_pack
+from runner.run import run_pack
 
 # ---------------------------------------------------------------------------
 # Adapter registry
@@ -308,91 +306,22 @@ def main(argv: list[str] | None = None) -> int:
 
         judge_client = JudgeClient()
 
-    # --- Run tasks ---
-    task_results: list[TaskRunResult] = []
-    all_outputs: list[dict] = []
-    model_id_from_adapter: str | None = None
-    failures: list[dict[str, str]] = []
-
-    for i, task in enumerate(tasks, start=1):
-        task_id = task.get("task_id", f"task_{i}")
-        print(f"  [{i}/{len(tasks)}] {task_id} ...", end=" ", flush=True)
-        try:
-            result = run_task(
-                task=task,
-                adapter=adapter,
-                runs=args.runs,
-                pack_id=pack_id,
-                judge_client=judge_client,
-            )
-        except Exception as exc:  # noqa: BLE001
-            print(f"FAILED ({exc})", flush=True)
-            failures.append({"task_id": task_id, "error": str(exc)})
-            continue
-
-        task_results.append(result)
-        all_outputs.extend(result.outputs)
-
-        # Capture model_id from first output.
-        if model_id_from_adapter is None and result.outputs:
-            model_id_from_adapter = result.outputs[0].get("model_id")
-
-        composite_str = f"{result.composite:.3f}" if result.composite is not None else "n/a"
-        print(f"composite={composite_str}", flush=True)
-
-    # --- Handle all-failure case ---
-    if not task_results:
-        print(
-            f"\nERROR: all {len(failures)} task(s) failed — no scorecard written.",
-            file=sys.stderr,
+    # --- Run pack via shared helper ---
+    try:
+        run_pack(
+            pack_path=pack_path,
+            pack_id=pack_id,
+            adapter=adapter,
+            runs=args.runs,
+            judge_client=judge_client,
+            grade_version=args.grade_version,
+            model_id=args.model_id,
+            out_dir=out_dir,
+            verbose=True,
         )
-        for f in failures:
-            print(f"  FAILED {f['task_id']}: {f['error']}", file=sys.stderr)
+    except RuntimeError as exc:
+        print(f"\nERROR: {exc}", file=sys.stderr)
         return 1
-
-    # Determine effective model_id.
-    effective_model_id: str = args.model_id or model_id_from_adapter or adapter.name
-
-    # --- Collect judge-client accumulated cost (None when no judge was used) ---
-    judge_metrics_dict: dict | None = None
-    if judge_client is not None:
-        from benchmark.rubrics.judge_client import JudgeClient as _JC
-
-        if isinstance(judge_client, _JC):
-            judge_metrics_dict = {
-                "cumulative_cost_usd": judge_client.cumulative_cost_usd,
-                "cumulative_prompt_tokens": judge_client.cumulative_prompt_tokens,
-                "cumulative_completion_tokens": judge_client.cumulative_completion_tokens,
-                "judge_call_count": judge_client.judge_call_count,
-            }
-
-    # --- Aggregate (over successful tasks only) ---
-    scorecard = aggregate(
-        task_results=task_results,
-        model_id=effective_model_id,
-        grade_version=args.grade_version,
-        judge_metrics=judge_metrics_dict,
-    )
-
-    # --- Write outputs ---
-    raw_path = write_raw_outputs(all_outputs, out_dir)
-    result_path = write_result(scorecard, out_dir)
-
-    print(f"\nRaw outputs  → {raw_path}")
-    print(f"Result JSON  → {result_path}")
-
-    # --- Write failures.json if any tasks failed ---
-    if failures:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        failures_path = out_dir / "failures.json"
-        with failures_path.open("w", encoding="utf-8") as fh:
-            json.dump(failures, fh, indent=2)
-            fh.write("\n")
-        print(f"Failures     → {failures_path}")
-        n_ok = len(task_results)
-        n_fail = len(failures)
-        failed_ids = ", ".join(f["task_id"] for f in failures)
-        print(f"\nSummary: {n_ok} task(s) succeeded, {n_fail} task(s) failed ({failed_ids}).")
 
     print("Done.")
     return 0
