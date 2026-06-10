@@ -276,6 +276,32 @@ class TestRunTask:
         result = run_task(_VALID_TASK, adapter, runs=1)
         assert result.scores.get("consistency") == pytest.approx(1.0)
 
+    def test_single_run_flags_trivial_consistency_and_excludes_it(self) -> None:
+        """runs=1 must stamp consistency_trivial and drop the dimension from the composite (H-3).
+
+        The composite must equal the renormalized weighted sum of the other
+        five dimensions — a trivial consistency=1.0 must contribute nothing.
+        """
+        adapter = StubAdapter()
+        result = run_task(_VALID_TASK, adapter, runs=1)
+        assert "consistency_trivial" in result.scorer_flags
+
+        rubric = _VALID_TASK["rubric"]
+        included = [d for d in result.scores if d != "consistency"]
+        weight_sum = sum(rubric[d]["weight"] for d in included)
+        expected = sum(rubric[d]["weight"] * result.scores[d] for d in included) / weight_sum
+        assert result.composite == pytest.approx(expected)
+
+    def test_multi_run_composite_includes_consistency(self) -> None:
+        """runs>=2 must keep consistency in the composite and not flag it."""
+        adapter = StubAdapter()
+        result = run_task(_VALID_TASK, adapter, runs=2)
+        assert "consistency_trivial" not in result.scorer_flags
+
+        rubric = _VALID_TASK["rubric"]
+        expected = sum(rubric[d]["weight"] * result.scores[d] for d in result.scores)
+        assert result.composite == pytest.approx(expected)
+
     def test_consistency_nonzero_for_multiple_runs(self) -> None:
         """Consistency with identical stub outputs should be > 0."""
         adapter = StubAdapter()

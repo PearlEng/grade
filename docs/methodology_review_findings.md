@@ -115,11 +115,16 @@ the claim's content tokens appear in the entry
 in the `method` label (`text_match[key_findings+token_overlap]` etc.). The
 doc/code mismatch (docstring promised token overlap) is resolved.
 
-### H-3. `runs=1` gives every model a free 10% (consistency) — `OPEN`
-All three consistency sub-metrics default to 1.0 with a single run. The
-leaderboard run must use `--runs ≥ 3` (default 5 is good). Suggested fix:
-stamp a `consistency_trivial` scorer flag when `runs < 2`, or exclude the
-dimension from the composite in that case.
+### H-3. `runs=1` gives every model a free 10% (consistency) — `FIXED`
+All three consistency sub-metrics default to 1.0 with a single run.
+
+**Fix applied:** when `runs < 2` the dispatcher stamps a
+`consistency_trivial` scorer flag and computes the composite with the
+consistency dimension excluded and the remaining weights renormalized — so
+single-run composites stay on the same [0, 1] scale without free credit.
+The per-dimension `consistency` score is still reported (1.0) for schema
+completeness. Multi-run behavior is unchanged. The leaderboard run should
+still use `--runs 5`.
 
 ### H-4. `max_tokens=1024` truncates analyses; reasoning models break — `OPEN`
 `OpenRouterAdapter.DEFAULT_MAX_TOKENS = 1024` is tight for a multi-section
