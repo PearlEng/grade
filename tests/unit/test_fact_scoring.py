@@ -467,9 +467,56 @@ class TestScoreFact:
         assert _sn(106.0, 100.0, "5%") == 0.0
 
     def test_numeric_value_in_limitations_text(self) -> None:
-        """Gold numeric fact should be credited when value appears only in limitations text."""
+        """Gold numeric fact should be credited when value appears only in limitations text.
+
+        The limitation sentence must share claim context ("students") to pass
+        the free-text gate.
+        """
         fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
-        detail = score_fact(fact, {}, [], limitations=["Note: 135 records were processed."])
+        detail = score_fact(fact, {}, [], limitations=["Note: only 135 students were counted."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    # --- Free-text context gate (H-1 false-positive guard) ---
+
+    def test_unrelated_sentence_number_not_credited(self) -> None:
+        """A matching number in a topically unrelated sentence must NOT credit the fact."""
+        fact = self._make_fact(
+            claim="School SCH-003 has 30 enrolled students.",
+            numeric_value=30.0,
+            tolerance=0.0,
+        )
+        # 29.6% would match gold 30 via the 2% count floor (±0.6), but the
+        # sentence shares no content token with the claim.
+        detail = score_fact(fact, {}, ["29.6% of survey responses arrived late."])
+        assert detail.score == 0.0
+        assert detail.matched is False
+
+    def test_related_sentence_number_credited(self) -> None:
+        """The same number IS credited when its sentence shares claim context."""
+        fact = self._make_fact(
+            claim="School SCH-003 has 30 enrolled students.",
+            numeric_value=30.0,
+            tolerance=0.0,
+        )
+        detail = score_fact(fact, {}, ["SCH-003 enrolls 30 students."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_plural_singular_token_normalization(self) -> None:
+        """The gate must treat 'student' and 'students' as the same token."""
+        fact = self._make_fact(
+            claim="The program enrolls 135 students.", numeric_value=135.0, tolerance=0.0
+        )
+        detail = score_fact(fact, {}, ["Each student is counted once: 135 in total."])
+        assert detail.score == 1.0
+
+    def test_structured_metrics_stay_key_agnostic(self) -> None:
+        """The context gate applies to free text only — structured_metrics keys are ignored."""
+        fact = self._make_fact(
+            claim="The program enrolls 135 students.", numeric_value=135.0, tolerance=0.0
+        )
+        detail = score_fact(fact, {"completely_unrelated_key": 135}, [])
         assert detail.score == 1.0
         assert detail.matched is True
 

@@ -85,21 +85,22 @@ reasoning tokens share the budget with the one-float answer).
 
 ## High (affects score validity — fix before the real run)
 
-### H-1. Grounding accuracy is credit-only and key-agnostic → rewards number spam — `OPEN`
-`benchmark/rubrics/fact_scoring.py`: a gold fact is credited if **any**
+### H-1. Grounding accuracy is credit-only and key-agnostic → rewards number spam — `FIXED`
+`benchmark/rubrics/fact_scoring.py`: a gold fact was credited if **any**
 number anywhere in the output (up to 50 prose sentences, plus a `/100`
-percent-normalized variant of every candidate) falls within tolerance.
-Leniency floors widen the window further (gold count 30 with authored
-tolerance 0 gets ±0.6, so an unrelated "29.6%" anywhere credits it). There is
-no penalty for wrong/hallucinated numbers. Net effect: verbose, number-dense
-outputs systematically outscore concise ones on the highest-weighted
-dimension (0.35–0.40).
+percent-normalized variant of every candidate) fell within tolerance.
+Leniency floors widened the window further (gold count 30 with authored
+tolerance 0 gets ±0.6, so an unrelated "29.6%" anywhere credited it).
 
-**Suggested fix:** require the matching number to appear in a sentence with
-token overlap against the gold claim (or within N tokens of a claim keyword),
-and/or add a precision-style penalty for confidently asserted numbers that
-match no gold fact. At minimum, log per-fact `method` labels into the result
-for auditability.
+**Fix applied:** free-text numeric matches (`key_findings` / `limitations`)
+now pass a **claim-context gate** — the containing sentence must share at
+least one content token with the gold claim (stopwords/numbers excluded,
+plural-`s` normalized; see `_shares_claim_context`). The "29.6% of survey
+responses arrived late" example no longer credits a gold count of 30.
+`structured_metrics` matching deliberately stays key-agnostic: structured
+values are deliberate model assertions, and key-name matching was previously
+found too brittle against real model outputs. Covered by the new
+context-gate tests in `test_fact_scoring.py`.
 
 ### H-2. Non-numeric gold facts effectively require verbatim echo — `OPEN`
 `fact_scoring.py:score_fact` finds a candidate finding by substring

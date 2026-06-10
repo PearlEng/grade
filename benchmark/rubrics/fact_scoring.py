@@ -19,7 +19,11 @@ A gold fact is credited when its VALUE is actually present in the model output,
    ``tolerance`` of ``gold_fact.numeric_value``.
 2. If not found in ``structured_metrics``, parse numbers out of every string in
    ``key_findings`` and ``limitations`` using :func:`_extract_numbers`.  Credit
-   if any parsed number is within tolerance.
+   if any parsed number is within tolerance — **but only when the containing
+   string shares at least one content token with the gold claim** (the
+   free-text context gate; see :func:`_shares_claim_context`).  This prevents
+   numerically-close values in unrelated sentences from crediting the fact,
+   which would otherwise reward number-dense outputs regardless of relevance.
 
 False-positive guard for numeric matching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -531,6 +535,89 @@ def _extract_numbers(text: str) -> list[float]:
 # Fact-level dispatcher (value-based matching)
 # ---------------------------------------------------------------------------
 
+#: Common function words excluded when extracting a claim's content tokens for
+#: the free-text context gate.  Deliberately small — only words that carry no
+#: topical signal in benchmark claims.
+_CONTEXT_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "has",
+        "have",
+        "in",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "per",
+        "than",
+        "that",
+        "the",
+        "their",
+        "this",
+        "to",
+        "was",
+        "were",
+        "with",
+    }
+)
+
+_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9\-]*")
+
+
+def _content_tokens(text: str) -> set[str]:
+    """Extract normalized content tokens from *text* for the context gate.
+
+    Lowercases, splits on non-alphanumerics (keeping in-word hyphens, so IDs
+    like ``sch-001`` survive), drops stopwords, pure numbers, and 1-2 char
+    fragments, and normalizes a trailing plural ``s`` so ``student`` matches
+    ``students``.
+
+    Args:
+        text: Arbitrary text (a gold claim or a model sentence).
+
+    Returns:
+        A set of normalized content tokens (possibly empty).
+    """
+    tokens: set[str] = set()
+    for tok in _TOKEN_PATTERN.findall(text.lower()):
+        if tok in _CONTEXT_STOPWORDS or len(tok) < 3:
+            continue
+        if tok.replace("-", "").replace(".", "").isdigit():
+            continue
+        tokens.add(tok[:-1] if len(tok) > 3 and tok.endswith("s") else tok)
+    return tokens
+
+
+def _shares_claim_context(claim_tokens: set[str], sentence: str) -> bool:
+    """Return True when *sentence* shares at least one content token with the claim.
+
+    This is the free-text false-positive gate: a number found in prose is only
+    credited when its containing sentence is topically related to the gold
+    claim.  When the claim yields no content tokens at all (pathological), the
+    gate is open — gating on nothing would reject everything.
+
+    Args:
+        claim_tokens: Output of :func:`_content_tokens` for the gold claim.
+        sentence: The candidate finding/limitation string.
+
+    Returns:
+        ``True`` if the sentence passes the context gate.
+    """
+    if not claim_tokens:
+        return True
+    return bool(claim_tokens & _content_tokens(sentence))
+
 
 def _find_predicted_numeric(
     gold_value: float,
@@ -538,6 +625,7 @@ def _find_predicted_numeric(
     structured_metrics: dict[str, Any],
     key_findings: list[str],
     limitations: list[str],
+    claim: str = "",
 ) -> tuple[float | None, str]:
     """Search for a numeric value matching *gold_value* within *tolerance*.
 
@@ -546,6 +634,18 @@ def _find_predicted_numeric(
     1. All **numeric** values in ``structured_metrics`` (keys ignored entirely).
     2. Numbers parsed from each string in ``key_findings``.
     3. Numbers parsed from each string in ``limitations``.
+
+    Free-text context gate (false-positive guard)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Numbers parsed from free text (``key_findings`` / ``limitations``) are
+    only credited when the containing string shares at least one content
+    token with the gold *claim* (see :func:`_content_tokens`).  Without the
+    gate, any numerically-close value anywhere in a long prose response —
+    up to 50 sentences — credits the fact, which rewards number-dense
+    outputs regardless of relevance.  ``structured_metrics`` matching stays
+    fully key-agnostic: structured values are deliberate model assertions
+    (and key-name matching was previously found too brittle against real
+    model outputs), so the spam guard targets prose only.
 
     For each candidate value ``N``, two comparisons are attempted:
 
@@ -566,6 +666,8 @@ def _find_predicted_numeric(
         structured_metrics: ``structured_metrics`` dict from the model output.
         key_findings: ``key_findings`` list from the model output.
         limitations: ``limitations`` list from the model output.
+        claim: The gold fact's claim text, used for the free-text context
+            gate.  An empty claim disables the gate (matches old behavior).
 
     Returns:
         ``(matched_value, source_label)`` where *source_label* is one of
@@ -576,6 +678,7 @@ def _find_predicted_numeric(
     """
     # Whether to attempt the /100 normalization (only safe for fraction/rate gold values)
     try_pct_norm: bool = 0 < gold_value <= 1
+    claim_tokens: set[str] = _content_tokens(claim)
 
     def _matches_candidate(candidate: float) -> str:
         """Return '' if no match, 'as_is' or 'pct_norm' for the matching form."""
@@ -594,23 +697,17 @@ def _find_predicted_numeric(
             if match_kind == "pct_norm":
                 return (float(val), "structured_metrics+percent_normalized")
 
-    # 2. Parse numbers from key_findings free text
-    for finding in key_findings:
-        for num in _extract_numbers(finding):
-            match_kind = _matches_candidate(num)
-            if match_kind == "as_is":
-                return (num, "key_findings")
-            if match_kind == "pct_norm":
-                return (num, "key_findings+percent_normalized")
-
-    # 3. Parse numbers from limitations free text
-    for lim in limitations:
-        for num in _extract_numbers(lim):
-            match_kind = _matches_candidate(num)
-            if match_kind == "as_is":
-                return (num, "limitations")
-            if match_kind == "pct_norm":
-                return (num, "limitations+percent_normalized")
+    # 2./3. Parse numbers from free text, gated on claim-context overlap.
+    for text_list, label in ((key_findings, "key_findings"), (limitations, "limitations")):
+        for entry in text_list:
+            if not _shares_claim_context(claim_tokens, entry):
+                continue
+            for num in _extract_numbers(entry):
+                match_kind = _matches_candidate(num)
+                if match_kind == "as_is":
+                    return (num, label)
+                if match_kind == "pct_norm":
+                    return (num, f"{label}+percent_normalized")
 
     return (None, "not_found")
 
@@ -720,6 +817,7 @@ def score_fact(
             structured_metrics,
             key_findings,
             lims,
+            claim=gold_fact.claim,
         )
 
         if matched_val is None:
