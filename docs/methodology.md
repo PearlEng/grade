@@ -186,7 +186,15 @@ The scoring pipeline:
 - **C1 (fact scoring)** — compares structured numeric outputs against `gold_facts` with
   absolute or relative tolerance.
 - **C2 (rubric scoring)** — a judge model evaluates each of the six dimensions using
-  task-authored per-dimension guidance.
+  task-authored per-dimension guidance.  Judge selection is **cross-family**: Claude
+  Opus 4.8 judges every candidate except Claude-family models, which are judged by
+  GPT-5.5 at xhigh reasoning effort instead — no judge ever shares a model family
+  (and hence a house style) with the model it grades.  Two caveats are inherent to
+  this design and disclosed here: (1) both judges are themselves benchmark
+  contestants, though neither ever judges its own family; (2) Claude rows are scored
+  by a different judge than all other rows, so a systematic harshness difference
+  between the two judges would shift the judged dimensions (40% of the composite)
+  for those rows relative to the rest of the leaderboard.
 - **C3 (claim validation)** — deterministic string-matching (with optional judge fallback)
   checks `gold_insights` presence, `forbidden_claims` absence, and `required_limitations`
   presence.
@@ -226,6 +234,27 @@ response consistency for education program analytics tasks using realistic synth
 - The synthetic generator embeds specific effect-size targets. Realized values for seed 42
   are validated in `ground_truth.json`; a different seed produces different realized values
   that may shift task difficulty.
+
+**Statistical precision.** GRADE V1 contains 26 tasks (11 operations, 5 outcomes,
+10 equity & research), with per-track task counts as low as 5. Overall composites are
+averaged over 26 tasks × 5 runs; per-track and per-pack scores rest on much smaller
+samples and should be read as indicative rather than precise. Small leaderboard gaps
+(roughly a few points) on per-track views are within plausible noise.
+
+**Judge scope.** The LLM judge evaluates the judged dimensions against the task's gold
+material (gold facts, gold insights, required limitations, forbidden claims, reference
+outline) — it does **not** see the raw fixture CSVs. Verifying numbers against the data
+is the deterministic C1 scorer's job; the judge assesses interpretation quality relative
+to the gold material. This keeps judge prompts bounded and judging reproducible, at the
+cost that `evidence_linkage` is assessed on plausibility against gold material rather
+than re-derived from the data.
+
+**Benchmark contamination.** Fixture data, gold facts, and task prompts are public in
+this repository, so future model training runs may ingest them. Because every dataset is
+produced by the synthetic generator (`benchmark/datagen/`), GRADE mitigates this by
+regenerating fixtures (new seed, recomputed `ground_truth.json`) for each numbered
+benchmark version; scores are only comparable within a benchmark version, and the
+version is recorded in every result (`grade_version`).
 
 The public/private boundary governing what can be published is documented in
 [`docs/publication_policy.md`](publication_policy.md).
