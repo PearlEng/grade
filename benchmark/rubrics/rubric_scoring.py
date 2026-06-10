@@ -12,8 +12,11 @@ Design decisions
   cannot express cross-field numeric constraints.  Any rubric whose dimension
   weights do not sum to approximately 1.0 (within ``WEIGHT_SUM_TOLERANCE``) is
   rejected with :exc:`ValueError` before any judge calls are made.
-- **Judge calls are capped** at one call per dimension (six total) per task,
-  providing a deterministic upper bound on API usage.
+- **Judge calls are capped** at one call per scored dimension, providing a
+  deterministic upper bound on API usage.  Callers may restrict scoring to a
+  subset of dimensions via the ``dimensions`` parameter; the runner judges
+  only the three C2-owned dimensions, since the other three are computed
+  deterministically by C1/C3/C4.
 - **Temperature 0 and a fixed random seed** are passed through to the judge
   client to ensure reproducible results; see :mod:`benchmark.rubrics.judge_client`
   for the live-judge integration wrapper.
@@ -145,6 +148,7 @@ def score_rubric(
     task: dict[str, Any],
     model_output: dict[str, Any],
     judge_client: JudgeClientProtocol,
+    dimensions: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """Score *model_output* against *task*'s rubric using *judge_client*.
 
@@ -168,21 +172,29 @@ def score_rubric(
         model_output: The normalized model output dict.  Passed through to the
             judge client unchanged.
         judge_client: An object implementing :class:`JudgeClientProtocol`.  The
-            scorer makes exactly one ``judge`` call per dimension (six calls
-            total) with no retries; cap and determinism settings (temperature 0,
-            fixed seed) should be configured on the client itself — see
+            scorer makes exactly one ``judge`` call per scored dimension; cap
+            and determinism settings (temperature 0, fixed seed) should be
+            configured on the client itself — see
             :mod:`benchmark.rubrics.judge_client`.
+        dimensions: Optional subset of :data:`RUBRIC_DIMENSIONS` to judge.
+            When ``None`` (default) all six dimensions are judged.  The
+            dispatcher passes only the C2-owned dimensions
+            (``insight_quality``, ``evidence_linkage``,
+            ``structure_usability``) since the other three are owned by
+            C1/C3/C4 — judging them would be wasted API spend.  Weight
+            validation always runs over the full rubric regardless.
 
     Returns:
         A dict with the following keys:
 
         - ``"task_id"`` (str): Copied from *task*.
         - ``"dimension_scores"`` (dict[str, float]): Per-dimension sub-scores
-          in [0, 1] keyed by dimension name.
+          in [0, 1] keyed by dimension name (scored dimensions only).
         - ``"rubric_weights"`` (dict[str, float]): The per-dimension weights
-          extracted from the task rubric.
+          extracted from the task rubric (scored dimensions only).
         - ``"composite"`` (float): The weighted aggregate score in [0, 1],
-          computed as ``sum(weight_i * score_i)`` over all six dimensions.
+          computed as ``sum(weight_i * score_i)`` over the scored dimensions
+          (partial when a ``dimensions`` subset is requested).
 
     Raises:
         ValueError: If the task rubric weights do not sum to
@@ -202,14 +214,20 @@ def score_rubric(
     rubric: dict[str, Any] = task["rubric"]
     task_id: str = task["task_id"]
 
-    # Validate weight sum before making any judge calls.
+    # Validate weight sum before making any judge calls.  Always validates
+    # the full rubric, even when only a subset of dimensions is judged.
     validate_rubric_weights(rubric)
+
+    scored_dimensions: tuple[str, ...] = dimensions if dimensions is not None else RUBRIC_DIMENSIONS
+    unknown = [d for d in scored_dimensions if d not in RUBRIC_DIMENSIONS]
+    if unknown:
+        raise ValueError(f"Unknown rubric dimension(s) requested: {unknown}")
 
     dimension_scores: dict[str, float] = {}
     rubric_weights: dict[str, float] = {}
     composite: float = 0.0
 
-    for dim in RUBRIC_DIMENSIONS:
+    for dim in scored_dimensions:
         dim_spec: dict[str, Any] = rubric[dim]
         weight: float = float(dim_spec["weight"])
         guidance: str = dim_spec.get("guidance", "")
