@@ -214,6 +214,10 @@ _NULL_JUDGE = _NullJudge()
 def _score_c1_grounding(task: dict[str, Any], output: dict[str, Any]) -> float:
     """Run C1 fact scoring and return ``grounding_accuracy`` in [0, 1].
 
+    The output's ``limitations`` list is passed through as a documented
+    fallback search target — models often state caveated numbers ("only 127
+    of the 135 enrolled students attended") in their limitations section.
+
     Args:
         task: Task definition dict.
         output: Normalized model output dict.
@@ -225,8 +229,20 @@ def _score_c1_grounding(task: dict[str, Any], output: dict[str, Any]) -> float:
         gold_facts=task.get("gold_facts", []),
         structured_metrics=output.get("structured_metrics", {}),
         key_findings=output.get("key_findings", []),
+        limitations=output.get("limitations", []),
     )
     return result.grounding_accuracy
+
+
+#: The rubric dimensions whose authoritative score comes from the C2 judge.
+#: The other three (grounding_accuracy, calibration_limitation_handling,
+#: consistency) are owned by C1/C3/C4, so judging them would be wasted API
+#: spend — at 26 tasks × 5 runs that's 390 discarded judge calls per model.
+_C2_OWNED_DIMENSIONS: tuple[str, ...] = (
+    "insight_quality",
+    "evidence_linkage",
+    "structure_usability",
+)
 
 
 def _score_c2_rubric(
@@ -236,11 +252,9 @@ def _score_c2_rubric(
 ) -> dict[str, float]:
     """Run C2 rubric scoring and return per-dimension scores.
 
-    Only the C2-owned dimensions are meaningful here:
-    ``insight_quality``, ``evidence_linkage``, and ``structure_usability``.
-    The ``calibration_limitation_handling`` and ``consistency`` values from
-    C2 are overridden by C3 and C4 respectively; ``grounding_accuracy`` is
-    overridden by C1.
+    Only the C2-owned dimensions are judged: ``insight_quality``,
+    ``evidence_linkage``, and ``structure_usability``.  The remaining three
+    dimensions are owned by C1/C3/C4 and are never sent to the judge.
 
     Args:
         task: Task definition dict.
@@ -249,15 +263,15 @@ def _score_c2_rubric(
             :class:`~benchmark.rubrics.rubric_scoring.JudgeClientProtocol`.
 
     Returns:
-        Dict mapping each of the six dimension names to a float in [0, 1].
-        On error (e.g. malformed rubric), returns zero scores for all
-        dimensions.
+        Dict mapping each C2-owned dimension name to a float in [0, 1].
+        On error (e.g. malformed rubric), returns zero scores for the
+        C2-owned dimensions.
     """
     try:
-        result = score_rubric(task, output, judge_client)
+        result = score_rubric(task, output, judge_client, dimensions=_C2_OWNED_DIMENSIONS)
         return dict(result["dimension_scores"])
     except (ValueError, KeyError):
-        return dict.fromkeys(RUBRIC_DIMENSIONS, 0.0)
+        return dict.fromkeys(_C2_OWNED_DIMENSIONS, 0.0)
 
 
 def _score_c3_calibration(
@@ -407,7 +421,7 @@ def run_task(
         # --- C1: grounding accuracy via fact scoring ---
         c1_score = _score_c1_grounding(task, output)
 
-        # --- C2: rubric scoring (all six dimensions) ---
+        # --- C2: rubric scoring (judged dimensions only) ---
         c2_scores = _score_c2_rubric(task, output, effective_judge)
 
         # --- C3: claim validation → calibration_limitation_handling ---

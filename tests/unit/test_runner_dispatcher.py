@@ -283,6 +283,43 @@ class TestRunTask:
         # Stub always emits the same first key_finding → consistency close to 1.0.
         assert result.scores.get("consistency", 0.0) > 0.0
 
+    def test_c1_grounding_searches_limitations(self) -> None:
+        """A gold-fact value stated only in limitations must be credited (M-1)."""
+        from runner.dispatcher import _score_c1_grounding
+
+        task = {
+            "task_id": "T-LIM",
+            "gold_facts": [
+                {
+                    "fact_id": "F1",
+                    "claim": "The program enrolls 977 students.",
+                    "source_files": ["students.csv"],
+                    "numeric_value": 977,
+                    "tolerance": 0,
+                }
+            ],
+        }
+        output = {
+            "structured_metrics": {},
+            "key_findings": ["Enrollment is healthy this quarter."],
+            "limitations": ["Note that only 977 students are reflected in this snapshot."],
+        }
+        assert _score_c1_grounding(task, output) == pytest.approx(1.0)
+
+    def test_c2_judge_not_called_for_non_c2_dimensions(self) -> None:
+        """The judge must only be called for C2-owned dimensions (M-2)."""
+        adapter = StubAdapter()
+        mock_judge = MagicMock()
+        mock_judge.judge.return_value = 0.5
+        run_task(_VALID_TASK, adapter, runs=1, judge_client=mock_judge)
+
+        called_dims = {call.kwargs["dimension"] for call in mock_judge.judge.call_args_list}
+        assert "grounding_accuracy" not in called_dims
+        assert "consistency" not in called_dims
+        # C3 may route calibration through the judge as a Stage-2 paraphrase
+        # fallback, but C2 itself must cover exactly the three owned dims.
+        assert {"insight_quality", "evidence_linkage", "structure_usability"} <= called_dims
+
 
 # ---------------------------------------------------------------------------
 # C3 integration tests — calibration_limitation_handling driven by validate_claims
