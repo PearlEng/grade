@@ -24,7 +24,7 @@ Usage
 
     # Resolve by name (returns a class, not an instance):
     AdapterCls = get_adapter("openrouter")
-    adapter = AdapterCls(model="anthropic/claude-sonnet-4-5")
+    adapter = AdapterCls(model="anthropic/claude-sonnet-4.6")
 
     # Use the default adapter:
     DefaultCls = get_adapter(DEFAULT_ADAPTER)
@@ -61,7 +61,7 @@ def get_adapter(name: str) -> type:
     Example::
 
         AdapterCls = get_adapter("openrouter")
-        adapter = AdapterCls(model="openai/gpt-4o")
+        adapter = AdapterCls(model="openai/gpt-5.5")
     """
     if name not in ADAPTER_REGISTRY:
         known = ", ".join(sorted(ADAPTER_REGISTRY))

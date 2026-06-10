@@ -10,21 +10,17 @@ provider API key management.
 
 Seed model identifiers
 ----------------------
-The mapping below lists the five seed models used in the GRADE arena (F4).
-Pass the *key* as ``--model`` on the CLI; the adapter will resolve it to the
-correct OpenRouter slug automatically.
+The mapping below lists the launch leaderboard models.  Pass the *key* as
+``--model`` on the CLI; the adapter will resolve it to the correct OpenRouter
+slug automatically.  Every slug is verified against the live OpenRouter
+``/api/v1/models`` listing — see ``docs/methodology_review_findings.md`` for
+the verification date and full lineup rationale.
 
 .. code-block:: python
 
     from runner.adapters.openrouter_adapter import SEED_MODELS
-    print(SEED_MODELS)
-    # {
-    #   "claude-opus-4-7":    "anthropic/claude-opus-4-5",
-    #   "claude-sonnet-4-6":  "anthropic/claude-sonnet-4-5",
-    #   "claude-haiku-4-5":   "anthropic/claude-haiku-4-5",
-    #   "gpt-5":              "openai/gpt-4o",
-    #   "gemini-2.5-pro":     "google/gemini-pro-1.5",
-    # }
+    print(SEED_MODELS["claude-sonnet-4-6"])
+    # "anthropic/claude-sonnet-4.6"
 
 Usage
 -----
@@ -33,7 +29,7 @@ Minimal::
     import os
     from runner.adapters.openrouter_adapter import OpenRouterAdapter
 
-    adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4-5")
+    adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6")
     output = adapter.run(task, run_index=0)
 
 The adapter reads ``OPENROUTER_API_KEY`` from the environment if *api_key* is
@@ -100,20 +96,27 @@ def _get_openrouter_timeout() -> float:
 
 #: Seed model shorthand → OpenRouter model slug mapping.
 #:
-#: These are the five models seeded in the GRADE arena (ticket F4).  Pass a
-#: shorthand string as the ``model`` constructor argument and the adapter
-#: resolves it automatically; you may also supply any raw OpenRouter slug
-#: directly (e.g. ``"anthropic/claude-3-5-sonnet"``) and it will be used
-#: verbatim.
+#: These are the launch leaderboard models.  Pass a shorthand string as the
+#: ``model`` constructor argument and the adapter resolves it automatically;
+#: you may also supply any raw OpenRouter slug directly (e.g.
+#: ``"anthropic/claude-sonnet-4.6"``) and it will be used verbatim.
+#:
+#: Every slug below was verified against the live OpenRouter
+#: ``/api/v1/models`` listing on 2026-06-10.  Note that current OpenRouter
+#: slugs use dots in version numbers (``claude-opus-4.8``), not dashes.
 SEED_MODELS: dict[str, str] = {
-    # Claude family (via Anthropic on OpenRouter)
-    "claude-opus-4-7": "anthropic/claude-opus-4-5",
-    "claude-sonnet-4-6": "anthropic/claude-sonnet-4-5",
-    "claude-haiku-4-5": "anthropic/claude-haiku-4-5",
+    # Anthropic
+    "claude-opus-4-8": "anthropic/claude-opus-4.8",
+    "claude-sonnet-4-6": "anthropic/claude-sonnet-4.6",
+    "claude-haiku-4-5": "anthropic/claude-haiku-4.5",
     # OpenAI
-    "gpt-5": "openai/gpt-4o",
+    "gpt-5-5": "openai/gpt-5.5",
+    "gpt-oss-120b": "openai/gpt-oss-120b",
     # Google
-    "gemini-2.5-pro": "google/gemini-pro-1.5",
+    "gemini-3-5-flash": "google/gemini-3.5-flash",
+    "gemini-3-1-pro": "google/gemini-3.1-pro-preview",
+    # NVIDIA
+    "nemotron-3-ultra": "nvidia/nemotron-3-ultra-550b-a55b",
 }
 
 
@@ -381,7 +384,7 @@ class OpenRouterAdapter:
 
     Args:
         model: OpenRouter model slug or :data:`SEED_MODELS` shorthand.
-            Defaults to ``"anthropic/claude-sonnet-4-5"`` (Sonnet 4.6 on
+            Defaults to ``"anthropic/claude-sonnet-4.6"`` (Sonnet 4.6 on
             OpenRouter).
         api_key: OpenRouter API key.  If ``None``, falls back to the
             ``OPENROUTER_API_KEY`` environment variable.  Raises
@@ -404,21 +407,36 @@ class OpenRouterAdapter:
     #: CLI id — ``--adapter openrouter``.
     name: str = "openrouter"
 
-    #: Default maximum tokens — lower than the original 2048 to reduce cost.
-    #: Override via ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
-    DEFAULT_MAX_TOKENS: int = 1024
+    #: Default maximum tokens.  The prompt asks for a multi-section prose
+    #: analysis of full CSV fixtures; 1024 (the old default) routinely
+    #: truncated responses — and limitations sections come last, so the cut
+    #: silently deflated calibration scores.  Override via the
+    #: ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
+    DEFAULT_MAX_TOKENS: int = 4096
+
+    #: Default maximum tokens when a reasoning effort is set.  Reasoning
+    #: tokens and the visible analysis share this budget, so reasoning models
+    #: need substantially more headroom than :attr:`DEFAULT_MAX_TOKENS` — at
+    #: high effort the model can otherwise burn the whole budget thinking and
+    #: return an empty visible response.
+    DEFAULT_REASONING_MAX_TOKENS: int = 16384
 
     def __init__(
         self,
-        model: str = "anthropic/claude-sonnet-4-5",
+        model: str = "anthropic/claude-sonnet-4.6",
         api_key: str | None = None,
         temperature: float = 1.0,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> None:
         """Initialise the adapter.
 
         Args:
-            model: OpenRouter model slug or shorthand key.
+            model: OpenRouter model slug or shorthand key.  May carry an
+                ``@<effort>`` suffix (e.g. ``"openai/gpt-5.5@xhigh"``) to set
+                the reasoning effort inline — the suffix is stripped from the
+                API slug but kept in the reported ``model_id`` so leaderboard
+                rows for different effort levels don't collide.
             api_key: API key; falls back to ``OPENROUTER_API_KEY`` env var.
             temperature: Sampling temperature for the model call.  Defaults
                 to ``1.0`` so that repeated benchmark runs vary, making the
@@ -426,17 +444,35 @@ class OpenRouterAdapter:
             max_tokens: Maximum tokens in the model response.  When ``None``
                 (the default), the value is resolved from the
                 ``GRADE_OPENROUTER_MAX_TOKENS`` environment variable if set,
-                otherwise :attr:`DEFAULT_MAX_TOKENS` (1024) is used.
+                otherwise :attr:`DEFAULT_MAX_TOKENS` (4096) — or
+                :attr:`DEFAULT_REASONING_MAX_TOKENS` (16384) when a reasoning
+                effort is in play, since reasoning tokens share the budget.
+            reasoning_effort: Optional reasoning effort level (``"low"``,
+                ``"medium"``, ``"high"``, ``"xhigh"``) forwarded to
+                OpenRouter as ``{"reasoning": {"effort": ...}}``.  Takes
+                precedence over an ``@<effort>`` suffix in *model*.
         """
         self._model_input = model
-        self._model = _resolve_model(model)
+        base_model, _, suffix_effort = model.partition("@")
+        self._reasoning_effort = reasoning_effort or (suffix_effort or None)
+        self._model = _resolve_model(base_model)
+        #: model_id reported in outputs — includes the effort label so results
+        #: for the same slug at different efforts stay distinct.
+        self._model_label = (
+            f"{self._model}@{self._reasoning_effort}" if self._reasoning_effort else self._model
+        )
         self._api_key = api_key  # resolved lazily in run() to support env var
         self._temperature = temperature
         if max_tokens is not None:
             self._max_tokens = max_tokens
         else:
             env_val = os.environ.get("GRADE_OPENROUTER_MAX_TOKENS")
-            self._max_tokens = int(env_val) if env_val else self.DEFAULT_MAX_TOKENS
+            if env_val:
+                self._max_tokens = int(env_val)
+            elif self._reasoning_effort is not None:
+                self._max_tokens = self.DEFAULT_REASONING_MAX_TOKENS
+            else:
+                self._max_tokens = self.DEFAULT_MAX_TOKENS
 
     def _get_api_key(self) -> str:
         """Resolve and return the API key.
@@ -500,6 +536,8 @@ class OpenRouterAdapter:
             "temperature": self._temperature,
             "max_tokens": self._max_tokens,
         }
+        if self._reasoning_effort is not None:
+            payload["reasoning"] = {"effort": self._reasoning_effort}
 
         t_start = time.monotonic()
         response = httpx.post(
@@ -521,6 +559,7 @@ class OpenRouterAdapter:
         body: dict[str, Any] = response.json()
         choice = body["choices"][0]
         raw_text: str = choice["message"]["content"] or ""
+        finish_reason: str | None = choice.get("finish_reason")
 
         usage: dict[str, Any] = body.get("usage", {})
         prompt_tokens: int | None = usage.get("prompt_tokens")
@@ -549,11 +588,14 @@ class OpenRouterAdapter:
             "model_temperature": self._temperature,
             "provider": provider,
             "pack_id": None,
+            # "length" means the response hit max_tokens and was truncated —
+            # the dispatcher stamps a 'truncated_output' scorer flag from this.
+            "finish_reason": finish_reason,
         }
 
         return {
             "task_id": task["task_id"],
-            "model_id": self._model,
+            "model_id": self._model_label,
             "run_index": run_index,
             "structured_metrics": parsed["structured_metrics"],
             "key_findings": parsed["key_findings"],
@@ -635,6 +677,7 @@ def post_chat_completion(
     max_tokens: int = ...,
     api_key: str | None = ...,
     return_usage: Literal[False] = ...,
+    reasoning_effort: str | None = ...,
 ) -> str: ...
 
 
@@ -647,6 +690,7 @@ def post_chat_completion(
     api_key: str | None = ...,
     *,
     return_usage: Literal[True],
+    reasoning_effort: str | None = ...,
 ) -> tuple[str, ChatCompletionUsage]: ...
 
 
@@ -658,6 +702,7 @@ def post_chat_completion(
     max_tokens: int = ...,
     api_key: str | None = ...,
     return_usage: bool = ...,
+    reasoning_effort: str | None = ...,
 ) -> str | tuple[str, ChatCompletionUsage]: ...
 
 
@@ -668,6 +713,7 @@ def post_chat_completion(
     max_tokens: int = 16,
     api_key: str | None = None,
     return_usage: bool = False,
+    reasoning_effort: str | None = None,
 ) -> str | tuple[str, ChatCompletionUsage]:
     """Send a chat-completion request to OpenRouter and return the response text.
 
@@ -690,6 +736,12 @@ def post_chat_completion(
         return_usage: When ``True``, return a ``(text, ChatCompletionUsage)``
             tuple instead of just the response text.  Existing callers that do
             not pass this flag are unaffected (backward-compatible).
+        reasoning_effort: Optional reasoning effort level (e.g. ``"low"``,
+            ``"medium"``, ``"high"``, ``"xhigh"``) forwarded to OpenRouter as
+            ``{"reasoning": {"effort": ...}}``.  Only meaningful for
+            reasoning-capable models; ``None`` (default) omits the field.
+            NOTE: for reasoning models, *max_tokens* bounds reasoning +
+            visible output combined, so callers must budget accordingly.
 
     Returns:
         When *return_usage* is ``False`` (default): the model's response text.
@@ -723,6 +775,8 @@ def post_chat_completion(
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    if reasoning_effort is not None:
+        payload["reasoning"] = {"effort": reasoning_effort}
 
     timeout = _get_openrouter_timeout()
 

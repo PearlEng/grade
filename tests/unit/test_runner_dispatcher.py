@@ -276,12 +276,97 @@ class TestRunTask:
         result = run_task(_VALID_TASK, adapter, runs=1)
         assert result.scores.get("consistency") == pytest.approx(1.0)
 
+    def test_single_run_flags_trivial_consistency_and_excludes_it(self) -> None:
+        """runs=1 must stamp consistency_trivial and drop the dimension from the composite (H-3).
+
+        The composite must equal the renormalized weighted sum of the other
+        five dimensions — a trivial consistency=1.0 must contribute nothing.
+        """
+        adapter = StubAdapter()
+        result = run_task(_VALID_TASK, adapter, runs=1)
+        assert "consistency_trivial" in result.scorer_flags
+
+        rubric = _VALID_TASK["rubric"]
+        included = [d for d in result.scores if d != "consistency"]
+        weight_sum = sum(rubric[d]["weight"] for d in included)
+        expected = sum(rubric[d]["weight"] * result.scores[d] for d in included) / weight_sum
+        assert result.composite == pytest.approx(expected)
+
+    def test_multi_run_composite_includes_consistency(self) -> None:
+        """runs>=2 must keep consistency in the composite and not flag it."""
+        adapter = StubAdapter()
+        result = run_task(_VALID_TASK, adapter, runs=2)
+        assert "consistency_trivial" not in result.scorer_flags
+
+        rubric = _VALID_TASK["rubric"]
+        expected = sum(rubric[d]["weight"] * result.scores[d] for d in result.scores)
+        assert result.composite == pytest.approx(expected)
+
     def test_consistency_nonzero_for_multiple_runs(self) -> None:
         """Consistency with identical stub outputs should be > 0."""
         adapter = StubAdapter()
         result = run_task(_VALID_TASK, adapter, runs=3)
         # Stub always emits the same first key_finding → consistency close to 1.0.
         assert result.scores.get("consistency", 0.0) > 0.0
+
+    def test_truncated_output_flagged(self) -> None:
+        """A run whose finish_reason is 'length' must stamp the truncated_output flag (H-4)."""
+
+        class _TruncatingAdapter:
+            name = "stub"
+
+            def __init__(self) -> None:
+                self._inner = StubAdapter()
+
+            def run(self, task: dict[str, Any], run_index: int = 0) -> dict[str, Any]:
+                output = self._inner.run(task, run_index=run_index)
+                output["runtime_metadata"]["finish_reason"] = "length"
+                return output
+
+        result = run_task(_VALID_TASK, _TruncatingAdapter(), runs=2)
+        assert "truncated_output" in result.scorer_flags
+
+    def test_non_truncated_output_not_flagged(self) -> None:
+        """Normal stub runs must not carry the truncated_output flag."""
+        result = run_task(_VALID_TASK, StubAdapter(), runs=1)
+        assert "truncated_output" not in result.scorer_flags
+
+    def test_c1_grounding_searches_limitations(self) -> None:
+        """A gold-fact value stated only in limitations must be credited (M-1)."""
+        from runner.dispatcher import _score_c1_grounding
+
+        task = {
+            "task_id": "T-LIM",
+            "gold_facts": [
+                {
+                    "fact_id": "F1",
+                    "claim": "The program enrolls 977 students.",
+                    "source_files": ["students.csv"],
+                    "numeric_value": 977,
+                    "tolerance": 0,
+                }
+            ],
+        }
+        output = {
+            "structured_metrics": {},
+            "key_findings": ["Enrollment is healthy this quarter."],
+            "limitations": ["Note that only 977 students are reflected in this snapshot."],
+        }
+        assert _score_c1_grounding(task, output) == pytest.approx(1.0)
+
+    def test_c2_judge_not_called_for_non_c2_dimensions(self) -> None:
+        """The judge must only be called for C2-owned dimensions (M-2)."""
+        adapter = StubAdapter()
+        mock_judge = MagicMock()
+        mock_judge.judge.return_value = 0.5
+        run_task(_VALID_TASK, adapter, runs=1, judge_client=mock_judge)
+
+        called_dims = {call.kwargs["dimension"] for call in mock_judge.judge.call_args_list}
+        assert "grounding_accuracy" not in called_dims
+        assert "consistency" not in called_dims
+        # C3 may route calibration through the judge as a Stage-2 paraphrase
+        # fallback, but C2 itself must cover exactly the three owned dims.
+        assert {"insight_quality", "evidence_linkage", "structure_usability"} <= called_dims
 
 
 # ---------------------------------------------------------------------------

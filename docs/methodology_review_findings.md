@@ -85,58 +85,71 @@ reasoning tokens share the budget with the one-float answer).
 
 ## High (affects score validity — fix before the real run)
 
-### H-1. Grounding accuracy is credit-only and key-agnostic → rewards number spam — `OPEN`
-`benchmark/rubrics/fact_scoring.py`: a gold fact is credited if **any**
+### H-1. Grounding accuracy is credit-only and key-agnostic → rewards number spam — `FIXED`
+`benchmark/rubrics/fact_scoring.py`: a gold fact was credited if **any**
 number anywhere in the output (up to 50 prose sentences, plus a `/100`
-percent-normalized variant of every candidate) falls within tolerance.
-Leniency floors widen the window further (gold count 30 with authored
-tolerance 0 gets ±0.6, so an unrelated "29.6%" anywhere credits it). There is
-no penalty for wrong/hallucinated numbers. Net effect: verbose, number-dense
-outputs systematically outscore concise ones on the highest-weighted
-dimension (0.35–0.40).
+percent-normalized variant of every candidate) fell within tolerance.
+Leniency floors widened the window further (gold count 30 with authored
+tolerance 0 gets ±0.6, so an unrelated "29.6%" anywhere credited it).
 
-**Suggested fix:** require the matching number to appear in a sentence with
-token overlap against the gold claim (or within N tokens of a claim keyword),
-and/or add a precision-style penalty for confidently asserted numbers that
-match no gold fact. At minimum, log per-fact `method` labels into the result
-for auditability.
+**Fix applied:** free-text numeric matches (`key_findings` / `limitations`)
+now pass a **claim-context gate** — the containing sentence must share at
+least one content token with the gold claim (stopwords/numbers excluded,
+plural-`s` normalized; see `_shares_claim_context`). The "29.6% of survey
+responses arrived late" example no longer credits a gold count of 30.
+`structured_metrics` matching deliberately stays key-agnostic: structured
+values are deliberate model assertions, and key-name matching was previously
+found too brittle against real model outputs. Covered by the new
+context-gate tests in `test_fact_scoring.py`.
 
-### H-2. Non-numeric gold facts effectively require verbatim echo — `OPEN`
-`fact_scoring.py:score_fact` finds a candidate finding by substring
-containment but then scores it with **exact** string equality
-(`score_exact_match`), so a finding that contains the claim plus any other
-words scores 0. The module docstring promises token-overlap matching that is
-not implemented. Non-numeric facts are near-universal misses for all models.
+### H-2. Non-numeric gold facts effectively require verbatim echo — `FIXED`
+`fact_scoring.py:score_fact` found a candidate finding by substring
+containment but then scored it with **exact** string equality, so a finding
+containing the claim plus any other words scored 0 — non-numeric facts were
+near-universal misses.
 
-**Suggested fix:** score the substring/token-overlap match directly (like
-C3's `TOKEN_OVERLAP_THRESHOLD` approach) instead of exact equality.
+**Fix applied:** the match is now scored directly. Stage 1 is substring
+containment (either direction); stage 2 credits paraphrases when >= 50% of
+the claim's content tokens appear in the entry
+(`TEXT_FACT_OVERLAP_THRESHOLD`, mirroring C3). Match provenance is recorded
+in the `method` label (`text_match[key_findings+token_overlap]` etc.). The
+doc/code mismatch (docstring promised token overlap) is resolved.
 
-### H-3. `runs=1` gives every model a free 10% (consistency) — `OPEN`
-All three consistency sub-metrics default to 1.0 with a single run. The
-leaderboard run must use `--runs ≥ 3` (default 5 is good). Suggested fix:
-stamp a `consistency_trivial` scorer flag when `runs < 2`, or exclude the
-dimension from the composite in that case.
+### H-3. `runs=1` gives every model a free 10% (consistency) — `FIXED`
+All three consistency sub-metrics default to 1.0 with a single run.
 
-### H-4. `max_tokens=1024` truncates analyses; reasoning models break — `OPEN`
-`OpenRouterAdapter.DEFAULT_MAX_TOKENS = 1024` is tight for a multi-section
-prose analysis; limitations sections come last and get cut first (deflating
-`calibration_limitation_handling`). `finish_reason` is not checked, so
-truncation is invisible. Reasoning models (GPT-5.5 at high effort) can burn
-the entire budget on reasoning tokens and return an empty visible response.
+**Fix applied:** when `runs < 2` the dispatcher stamps a
+`consistency_trivial` scorer flag and computes the composite with the
+consistency dimension excluded and the remaining weights renormalized — so
+single-run composites stay on the same [0, 1] scale without free credit.
+The per-dimension `consistency` score is still reported (1.0) for schema
+completeness. Multi-run behavior is unchanged. The leaderboard run should
+still use `--runs 5`.
 
-**Suggested fix:** raise the default to ≥ 4096, check
-`choices[0].finish_reason == "length"` and stamp a `truncated` flag, and add
-a `reasoning` parameter passthrough (see H-5).
+### H-4. `max_tokens=1024` truncates analyses; reasoning models break — `FIXED`
+`OpenRouterAdapter.DEFAULT_MAX_TOKENS = 1024` was tight for a multi-section
+prose analysis; limitations sections come last and got cut first (deflating
+`calibration_limitation_handling`), and truncation was invisible.
 
-### H-5. No reasoning-effort support — required for the GPT-5.5 sweep — `OPEN` (partial)
+**Fix applied:** default raised to 4096 (env/constructor overrides
+unchanged); the adapter records the provider's `finish_reason` in
+`runtime_metadata` (new optional schema field), and the dispatcher stamps a
+`truncated_output` scorer flag whenever any run finishes with `"length"` —
+so truncation shows up in the scorecard instead of silently deflating
+scores. Reasoning-model budgets are handled in H-5.
+
+### H-5. No reasoning-effort support — required for the GPT-5.5 sweep — `FIXED`
 The launch plan includes GPT-5.5 at xhigh/high/medium/low effort.
-**Done (2026-06-10):** `post_chat_completion` now accepts a
-`reasoning_effort` parameter (used by the GPT-5.5 judge).
-**Still open:** `OpenRouterAdapter` (the candidate-side path) does not yet
-accept/forward a reasoning effort, and results need distinct `model_id`
-labels per effort level (e.g. `openai/gpt-5.5@xhigh`) so leaderboard rows
-don't collide. Wire the adapter through the same parameter and add a
-`--reasoning-effort` CLI flag (or per-model syntax in `--models`).
+
+**Fix applied:** `OpenRouterAdapter` accepts a `reasoning_effort` parameter
+and an inline `@<effort>` model suffix (e.g. `openai/gpt-5.5@xhigh`,
+documented in both CLIs' help). The suffix is stripped from the API slug but
+kept in the reported `model_id`, so the same slug at different efforts gets
+distinct leaderboard rows. Reasoning runs default to a 16384-token budget
+(`DEFAULT_REASONING_MAX_TOKENS`) since reasoning tokens share the budget
+with the visible analysis. The judge-side passthrough landed earlier
+(`post_chat_completion`). The GPT-5.5 sweep is now:
+`--models openai/gpt-5.5@xhigh,openai/gpt-5.5@high,openai/gpt-5.5@medium,openai/gpt-5.5@low`.
 
 ---
 

@@ -252,6 +252,29 @@ class TestScoreRubric:
         score_rubric(_VALID_TASK, _VALID_OUTPUT, mock)
         assert mock.judge.call_count == len(RUBRIC_DIMENSIONS)
 
+    def test_dimensions_subset_judges_only_those(self) -> None:
+        """A dimensions subset must restrict judge calls and returned scores.
+
+        The dispatcher passes only the C2-owned dimensions so judge calls for
+        C1/C3/C4-owned dimensions are never made (methodology finding M-2).
+        """
+        subset = ("insight_quality", "evidence_linkage", "structure_usability")
+        mock = _make_mock_judge(0.5)
+        result = score_rubric(_VALID_TASK, _VALID_OUTPUT, mock, dimensions=subset)
+
+        assert mock.judge.call_count == len(subset)
+        called_dims = {call.kwargs["dimension"] for call in mock.judge.call_args_list}
+        assert called_dims == set(subset)
+        assert set(result["dimension_scores"].keys()) == set(subset)
+        assert set(result["rubric_weights"].keys()) == set(subset)
+
+    def test_dimensions_subset_unknown_dimension_raises(self) -> None:
+        """An unknown dimension in the subset must raise before judge calls."""
+        mock = _make_mock_judge(0.5)
+        with pytest.raises(ValueError, match="Unknown rubric dimension"):
+            score_rubric(_VALID_TASK, _VALID_OUTPUT, mock, dimensions=("not_a_dim",))
+        assert mock.judge.call_count == 0
+
     def test_judge_called_with_correct_dimension_names(self) -> None:
         """Each judge call must receive the correct dimension name as the first arg."""
         mock = _make_mock_judge(0.5)

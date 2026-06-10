@@ -214,6 +214,10 @@ _NULL_JUDGE = _NullJudge()
 def _score_c1_grounding(task: dict[str, Any], output: dict[str, Any]) -> float:
     """Run C1 fact scoring and return ``grounding_accuracy`` in [0, 1].
 
+    The output's ``limitations`` list is passed through as a documented
+    fallback search target — models often state caveated numbers ("only 127
+    of the 135 enrolled students attended") in their limitations section.
+
     Args:
         task: Task definition dict.
         output: Normalized model output dict.
@@ -225,8 +229,20 @@ def _score_c1_grounding(task: dict[str, Any], output: dict[str, Any]) -> float:
         gold_facts=task.get("gold_facts", []),
         structured_metrics=output.get("structured_metrics", {}),
         key_findings=output.get("key_findings", []),
+        limitations=output.get("limitations", []),
     )
     return result.grounding_accuracy
+
+
+#: The rubric dimensions whose authoritative score comes from the C2 judge.
+#: The other three (grounding_accuracy, calibration_limitation_handling,
+#: consistency) are owned by C1/C3/C4, so judging them would be wasted API
+#: spend — at 26 tasks × 5 runs that's 390 discarded judge calls per model.
+_C2_OWNED_DIMENSIONS: tuple[str, ...] = (
+    "insight_quality",
+    "evidence_linkage",
+    "structure_usability",
+)
 
 
 def _score_c2_rubric(
@@ -236,11 +252,9 @@ def _score_c2_rubric(
 ) -> dict[str, float]:
     """Run C2 rubric scoring and return per-dimension scores.
 
-    Only the C2-owned dimensions are meaningful here:
-    ``insight_quality``, ``evidence_linkage``, and ``structure_usability``.
-    The ``calibration_limitation_handling`` and ``consistency`` values from
-    C2 are overridden by C3 and C4 respectively; ``grounding_accuracy`` is
-    overridden by C1.
+    Only the C2-owned dimensions are judged: ``insight_quality``,
+    ``evidence_linkage``, and ``structure_usability``.  The remaining three
+    dimensions are owned by C1/C3/C4 and are never sent to the judge.
 
     Args:
         task: Task definition dict.
@@ -249,15 +263,15 @@ def _score_c2_rubric(
             :class:`~benchmark.rubrics.rubric_scoring.JudgeClientProtocol`.
 
     Returns:
-        Dict mapping each of the six dimension names to a float in [0, 1].
-        On error (e.g. malformed rubric), returns zero scores for all
-        dimensions.
+        Dict mapping each C2-owned dimension name to a float in [0, 1].
+        On error (e.g. malformed rubric), returns zero scores for the
+        C2-owned dimensions.
     """
     try:
-        result = score_rubric(task, output, judge_client)
+        result = score_rubric(task, output, judge_client, dimensions=_C2_OWNED_DIMENSIONS)
         return dict(result["dimension_scores"])
     except (ValueError, KeyError):
-        return dict.fromkeys(RUBRIC_DIMENSIONS, 0.0)
+        return dict.fromkeys(_C2_OWNED_DIMENSIONS, 0.0)
 
 
 def _score_c3_calibration(
@@ -284,20 +298,32 @@ def _score_c3_calibration(
 def _compute_composite(
     scores: DimensionScores,
     rubric: dict[str, Any],
+    exclude: tuple[str, ...] = (),
 ) -> float:
     """Compute the weighted composite score from per-dimension scores.
 
     Args:
         scores: Per-dimension scores in [0, 1].
         rubric: Task rubric dict with per-dimension ``weight`` values.
+        exclude: Dimensions to drop from the composite.  The remaining
+            weights are renormalized to sum to 1, so the composite stays on
+            the same [0, 1] scale.  Used for single-run executions where
+            ``consistency`` is trivially 1.0 and would otherwise be free
+            credit.
 
     Returns:
         Weighted sum in [0, 1].
     """
     total = 0.0
+    included_weight = 0.0
     for dim in RUBRIC_DIMENSIONS:
+        if dim in exclude:
+            continue
         weight = float(rubric.get(dim, {}).get("weight", 0.0))
+        included_weight += weight
         total += weight * scores.get(dim, 0.0)
+    if exclude and included_weight > 0:
+        return total / included_weight
     return total
 
 
@@ -375,6 +401,14 @@ def run_task(
     per_run_scores: list[DimensionScores] = []
     all_flags: list[str] = []
 
+    # Make null-judge runs visible in the result: when no live judge is
+    # configured, the C2-owned dimensions (insight_quality, evidence_linkage,
+    # structure_usability — 40% of the composite) are a flat 0.5 placeholder.
+    # The flag lands in per_task_scores[].scorer_flags so downstream consumers
+    # (leaderboard, website) can detect and refuse placeholder scorecards.
+    if judge_client is None:
+        all_flags.append("null_judge")
+
     # Resolve fixture contents once (same for all runs of this task).
     fixtures: dict[str, str] = _resolve_fixtures(
         task.get("allowed_inputs", []),
@@ -396,10 +430,18 @@ def run_task(
         validate_output(output)
         outputs.append(output)
 
+        # Surface truncation: a finish_reason of "length" means the response
+        # hit max_tokens mid-analysis.  Limitations sections come last in
+        # prose responses, so truncation silently deflates calibration scores
+        # — make it visible in the scorecard instead.
+        if output.get("runtime_metadata", {}).get("finish_reason") == "length":
+            if "truncated_output" not in all_flags:
+                all_flags.append("truncated_output")
+
         # --- C1: grounding accuracy via fact scoring ---
         c1_score = _score_c1_grounding(task, output)
 
-        # --- C2: rubric scoring (all six dimensions) ---
+        # --- C2: rubric scoring (judged dimensions only) ---
         c2_scores = _score_c2_rubric(task, output, effective_judge)
 
         # --- C3: claim validation → calibration_limitation_handling ---
@@ -428,8 +470,16 @@ def run_task(
             values = [s.get(dim, 0.0) for s in per_run_scores]
             avg_scores[dim] = sum(values) / len(values) if values else 0.0
 
-    # Compute composite.
-    composite = _compute_composite(avg_scores, rubric)
+    # Compute composite.  With a single run, all three C4 sub-metrics
+    # trivially default to 1.0 — that's not measured consistency, it's free
+    # credit (typically 10% of the composite).  Exclude the dimension and
+    # renormalize the remaining weights so single-run composites stay
+    # comparable, and flag the run so downstream consumers can tell.
+    if runs < 2:
+        all_flags.append("consistency_trivial")
+        composite = _compute_composite(avg_scores, rubric, exclude=("consistency",))
+    else:
+        composite = _compute_composite(avg_scores, rubric)
 
     return TaskRunResult(
         task_id=task_id,
