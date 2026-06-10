@@ -430,6 +430,14 @@ def run_task(
         validate_output(output)
         outputs.append(output)
 
+        # Surface truncation: a finish_reason of "length" means the response
+        # hit max_tokens mid-analysis.  Limitations sections come last in
+        # prose responses, so truncation silently deflates calibration scores
+        # — make it visible in the scorecard instead.
+        if output.get("runtime_metadata", {}).get("finish_reason") == "length":
+            if "truncated_output" not in all_flags:
+                all_flags.append("truncated_output")
+
         # --- C1: grounding accuracy via fact scoring ---
         c1_score = _score_c1_grounding(task, output)
 

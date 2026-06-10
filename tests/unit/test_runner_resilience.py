@@ -4,8 +4,9 @@ Covers:
 - Partial run: adapter raises on one task → result.json contains only
   the successful tasks, failures.json lists the failed one, runner returns 0.
 - All-failure run: all tasks fail → runner returns 1, no result.json written.
-- OpenRouterAdapter default max_tokens is 1024; constructor override and
-  GRADE_OPENROUTER_MAX_TOKENS env-var override both work.
+- OpenRouterAdapter default max_tokens is 4096 (raised from 1024, which
+  truncated prose analyses — methodology finding H-4); constructor override
+  and GRADE_OPENROUTER_MAX_TOKENS env-var override both work.
 """
 
 from __future__ import annotations
@@ -337,16 +338,16 @@ class TestAllTasksSucceed:
 
 
 class TestOpenRouterMaxTokens:
-    """OpenRouterAdapter default max_tokens is 1024 and can be overridden."""
+    """OpenRouterAdapter default max_tokens is 4096 and can be overridden."""
 
-    def test_default_max_tokens_is_1024(self) -> None:
-        """Default max_tokens must be 1024."""
-        adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4-5", api_key="sk-or-test")
-        assert adapter._max_tokens == 1024
+    def test_default_max_tokens_is_4096(self) -> None:
+        """Default max_tokens must be 4096 (1024 truncated prose analyses, H-4)."""
+        adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+        assert adapter._max_tokens == 4096
 
     def test_default_max_tokens_class_constant(self) -> None:
-        """DEFAULT_MAX_TOKENS class attribute must be 1024."""
-        assert OpenRouterAdapter.DEFAULT_MAX_TOKENS == 1024
+        """DEFAULT_MAX_TOKENS class attribute must be 4096."""
+        assert OpenRouterAdapter.DEFAULT_MAX_TOKENS == 4096
 
     def test_constructor_override(self) -> None:
         """Explicit max_tokens constructor arg must override the default."""

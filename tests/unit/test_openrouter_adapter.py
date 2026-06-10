@@ -409,6 +409,38 @@ class TestOpenRouterAdapterRun:
         output = self._run_with_mock()
         assert output["runtime_metadata"]["latency_ms"] >= 0.0
 
+    def test_finish_reason_captured_and_schema_valid(self) -> None:
+        """finish_reason must be recorded in runtime_metadata and pass schema validation (H-4)."""
+        from benchmark.schemas import validate_output
+
+        output = self._run_with_mock()
+        assert output["runtime_metadata"]["finish_reason"] == "stop"
+        validate_output(output)
+
+    def test_truncated_finish_reason_recorded(self) -> None:
+        """A 'length' finish_reason (truncated response) must be recorded verbatim."""
+        truncated_body = {
+            **_MOCK_OR_RESPONSE,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "## Key Findings\n- Cut off"},
+                    "finish_reason": "length",
+                }
+            ],
+        }
+        output = self._run_with_mock(mock_body=truncated_body)
+        assert output["runtime_metadata"]["finish_reason"] == "length"
+
+    def test_default_max_tokens_fits_prose_analysis(self) -> None:
+        """The default max_tokens must be >= 4096 (1024 truncated real analyses, H-4)."""
+        assert OpenRouterAdapter.DEFAULT_MAX_TOKENS >= 4096
+        with _MockHttpx(_MOCK_OR_RESPONSE) as mock_post:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            adapter.run(_VALID_TASK, run_index=0)
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert payload["max_tokens"] >= 4096
+
     def test_token_counts_from_usage(self) -> None:
         """prompt_tokens and completion_tokens must be populated from usage."""
         output = self._run_with_mock()

@@ -407,9 +407,12 @@ class OpenRouterAdapter:
     #: CLI id — ``--adapter openrouter``.
     name: str = "openrouter"
 
-    #: Default maximum tokens — lower than the original 2048 to reduce cost.
-    #: Override via ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
-    DEFAULT_MAX_TOKENS: int = 1024
+    #: Default maximum tokens.  The prompt asks for a multi-section prose
+    #: analysis of full CSV fixtures; 1024 (the old default) routinely
+    #: truncated responses — and limitations sections come last, so the cut
+    #: silently deflated calibration scores.  Override via the
+    #: ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
+    DEFAULT_MAX_TOKENS: int = 4096
 
     def __init__(
         self,
@@ -524,6 +527,7 @@ class OpenRouterAdapter:
         body: dict[str, Any] = response.json()
         choice = body["choices"][0]
         raw_text: str = choice["message"]["content"] or ""
+        finish_reason: str | None = choice.get("finish_reason")
 
         usage: dict[str, Any] = body.get("usage", {})
         prompt_tokens: int | None = usage.get("prompt_tokens")
@@ -552,6 +556,9 @@ class OpenRouterAdapter:
             "model_temperature": self._temperature,
             "provider": provider,
             "pack_id": None,
+            # "length" means the response hit max_tokens and was truncated —
+            # the dispatcher stamps a 'truncated_output' scorer flag from this.
+            "finish_reason": finish_reason,
         }
 
         return {

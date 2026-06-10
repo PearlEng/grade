@@ -126,16 +126,17 @@ The per-dimension `consistency` score is still reported (1.0) for schema
 completeness. Multi-run behavior is unchanged. The leaderboard run should
 still use `--runs 5`.
 
-### H-4. `max_tokens=1024` truncates analyses; reasoning models break — `OPEN`
-`OpenRouterAdapter.DEFAULT_MAX_TOKENS = 1024` is tight for a multi-section
-prose analysis; limitations sections come last and get cut first (deflating
-`calibration_limitation_handling`). `finish_reason` is not checked, so
-truncation is invisible. Reasoning models (GPT-5.5 at high effort) can burn
-the entire budget on reasoning tokens and return an empty visible response.
+### H-4. `max_tokens=1024` truncates analyses; reasoning models break — `FIXED`
+`OpenRouterAdapter.DEFAULT_MAX_TOKENS = 1024` was tight for a multi-section
+prose analysis; limitations sections come last and got cut first (deflating
+`calibration_limitation_handling`), and truncation was invisible.
 
-**Suggested fix:** raise the default to ≥ 4096, check
-`choices[0].finish_reason == "length"` and stamp a `truncated` flag, and add
-a `reasoning` parameter passthrough (see H-5).
+**Fix applied:** default raised to 4096 (env/constructor overrides
+unchanged); the adapter records the provider's `finish_reason` in
+`runtime_metadata` (new optional schema field), and the dispatcher stamps a
+`truncated_output` scorer flag whenever any run finishes with `"length"` —
+so truncation shows up in the scorecard instead of silently deflating
+scores. Reasoning-model budgets are handled in H-5.
 
 ### H-5. No reasoning-effort support — required for the GPT-5.5 sweep — `OPEN` (partial)
 The launch plan includes GPT-5.5 at xhigh/high/medium/low effort.

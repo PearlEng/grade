@@ -150,6 +150,10 @@
         "pack_id": {
           "type": ["string", "null"],
           "description": "Fixture pack identifier the task was run against, e.g. 'pack_operations', 'pack_outcomes', 'pack_equity_research'."
+        },
+        "finish_reason": {
+          "type": ["string", "null"],
+          "description": "Provider-reported finish reason for the completion, e.g. 'stop' or 'length'. 'length' means the response hit max_tokens and was truncated. Null/absent when the provider does not report one."
         }
       }
     }

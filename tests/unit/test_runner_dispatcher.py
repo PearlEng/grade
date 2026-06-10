@@ -309,6 +309,28 @@ class TestRunTask:
         # Stub always emits the same first key_finding → consistency close to 1.0.
         assert result.scores.get("consistency", 0.0) > 0.0
 
+    def test_truncated_output_flagged(self) -> None:
+        """A run whose finish_reason is 'length' must stamp the truncated_output flag (H-4)."""
+
+        class _TruncatingAdapter:
+            name = "stub"
+
+            def __init__(self) -> None:
+                self._inner = StubAdapter()
+
+            def run(self, task: dict[str, Any], run_index: int = 0) -> dict[str, Any]:
+                output = self._inner.run(task, run_index=run_index)
+                output["runtime_metadata"]["finish_reason"] = "length"
+                return output
+
+        result = run_task(_VALID_TASK, _TruncatingAdapter(), runs=2)
+        assert "truncated_output" in result.scorer_flags
+
+    def test_non_truncated_output_not_flagged(self) -> None:
+        """Normal stub runs must not carry the truncated_output flag."""
+        result = run_task(_VALID_TASK, StubAdapter(), runs=1)
+        assert "truncated_output" not in result.scorer_flags
+
     def test_c1_grounding_searches_limitations(self) -> None:
         """A gold-fact value stated only in limitations must be credited (M-1)."""
         from runner.dispatcher import _score_c1_grounding
