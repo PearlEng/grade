@@ -190,8 +190,11 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         metavar="M1,M2,...",
         help=(
-            "Comma-separated list of model IDs to evaluate, "
-            "e.g. 'anthropic/claude-haiku-3,anthropic/claude-sonnet-4-5'."
+            "Comma-separated list of model IDs to evaluate, e.g. "
+            "'anthropic/claude-sonnet-4.6,openai/gpt-5.5@xhigh'.  Append "
+            "@<effort> to run a reasoning model at a specific effort level; "
+            "the same slug may appear at several efforts and each gets its "
+            "own leaderboard row."
         ),
     )
     parser.add_argument(

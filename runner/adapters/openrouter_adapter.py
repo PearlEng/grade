@@ -414,17 +414,29 @@ class OpenRouterAdapter:
     #: ``GRADE_OPENROUTER_MAX_TOKENS`` env var or the constructor arg.
     DEFAULT_MAX_TOKENS: int = 4096
 
+    #: Default maximum tokens when a reasoning effort is set.  Reasoning
+    #: tokens and the visible analysis share this budget, so reasoning models
+    #: need substantially more headroom than :attr:`DEFAULT_MAX_TOKENS` — at
+    #: high effort the model can otherwise burn the whole budget thinking and
+    #: return an empty visible response.
+    DEFAULT_REASONING_MAX_TOKENS: int = 16384
+
     def __init__(
         self,
         model: str = "anthropic/claude-sonnet-4.6",
         api_key: str | None = None,
         temperature: float = 1.0,
         max_tokens: int | None = None,
+        reasoning_effort: str | None = None,
     ) -> None:
         """Initialise the adapter.
 
         Args:
-            model: OpenRouter model slug or shorthand key.
+            model: OpenRouter model slug or shorthand key.  May carry an
+                ``@<effort>`` suffix (e.g. ``"openai/gpt-5.5@xhigh"``) to set
+                the reasoning effort inline — the suffix is stripped from the
+                API slug but kept in the reported ``model_id`` so leaderboard
+                rows for different effort levels don't collide.
             api_key: API key; falls back to ``OPENROUTER_API_KEY`` env var.
             temperature: Sampling temperature for the model call.  Defaults
                 to ``1.0`` so that repeated benchmark runs vary, making the
@@ -432,17 +444,35 @@ class OpenRouterAdapter:
             max_tokens: Maximum tokens in the model response.  When ``None``
                 (the default), the value is resolved from the
                 ``GRADE_OPENROUTER_MAX_TOKENS`` environment variable if set,
-                otherwise :attr:`DEFAULT_MAX_TOKENS` (1024) is used.
+                otherwise :attr:`DEFAULT_MAX_TOKENS` (4096) — or
+                :attr:`DEFAULT_REASONING_MAX_TOKENS` (16384) when a reasoning
+                effort is in play, since reasoning tokens share the budget.
+            reasoning_effort: Optional reasoning effort level (``"low"``,
+                ``"medium"``, ``"high"``, ``"xhigh"``) forwarded to
+                OpenRouter as ``{"reasoning": {"effort": ...}}``.  Takes
+                precedence over an ``@<effort>`` suffix in *model*.
         """
         self._model_input = model
-        self._model = _resolve_model(model)
+        base_model, _, suffix_effort = model.partition("@")
+        self._reasoning_effort = reasoning_effort or (suffix_effort or None)
+        self._model = _resolve_model(base_model)
+        #: model_id reported in outputs — includes the effort label so results
+        #: for the same slug at different efforts stay distinct.
+        self._model_label = (
+            f"{self._model}@{self._reasoning_effort}" if self._reasoning_effort else self._model
+        )
         self._api_key = api_key  # resolved lazily in run() to support env var
         self._temperature = temperature
         if max_tokens is not None:
             self._max_tokens = max_tokens
         else:
             env_val = os.environ.get("GRADE_OPENROUTER_MAX_TOKENS")
-            self._max_tokens = int(env_val) if env_val else self.DEFAULT_MAX_TOKENS
+            if env_val:
+                self._max_tokens = int(env_val)
+            elif self._reasoning_effort is not None:
+                self._max_tokens = self.DEFAULT_REASONING_MAX_TOKENS
+            else:
+                self._max_tokens = self.DEFAULT_MAX_TOKENS
 
     def _get_api_key(self) -> str:
         """Resolve and return the API key.
@@ -506,6 +536,8 @@ class OpenRouterAdapter:
             "temperature": self._temperature,
             "max_tokens": self._max_tokens,
         }
+        if self._reasoning_effort is not None:
+            payload["reasoning"] = {"effort": self._reasoning_effort}
 
         t_start = time.monotonic()
         response = httpx.post(
@@ -563,7 +595,7 @@ class OpenRouterAdapter:
 
         return {
             "task_id": task["task_id"],
-            "model_id": self._model,
+            "model_id": self._model_label,
             "run_index": run_index,
             "structured_metrics": parsed["structured_metrics"],
             "key_findings": parsed["key_findings"],

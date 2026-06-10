@@ -138,15 +138,18 @@ unchanged); the adapter records the provider's `finish_reason` in
 so truncation shows up in the scorecard instead of silently deflating
 scores. Reasoning-model budgets are handled in H-5.
 
-### H-5. No reasoning-effort support — required for the GPT-5.5 sweep — `OPEN` (partial)
+### H-5. No reasoning-effort support — required for the GPT-5.5 sweep — `FIXED`
 The launch plan includes GPT-5.5 at xhigh/high/medium/low effort.
-**Done (2026-06-10):** `post_chat_completion` now accepts a
-`reasoning_effort` parameter (used by the GPT-5.5 judge).
-**Still open:** `OpenRouterAdapter` (the candidate-side path) does not yet
-accept/forward a reasoning effort, and results need distinct `model_id`
-labels per effort level (e.g. `openai/gpt-5.5@xhigh`) so leaderboard rows
-don't collide. Wire the adapter through the same parameter and add a
-`--reasoning-effort` CLI flag (or per-model syntax in `--models`).
+
+**Fix applied:** `OpenRouterAdapter` accepts a `reasoning_effort` parameter
+and an inline `@<effort>` model suffix (e.g. `openai/gpt-5.5@xhigh`,
+documented in both CLIs' help). The suffix is stripped from the API slug but
+kept in the reported `model_id`, so the same slug at different efforts gets
+distinct leaderboard rows. Reasoning runs default to a 16384-token budget
+(`DEFAULT_REASONING_MAX_TOKENS`) since reasoning tokens share the budget
+with the visible analysis. The judge-side passthrough landed earlier
+(`post_chat_completion`). The GPT-5.5 sweep is now:
+`--models openai/gpt-5.5@xhigh,openai/gpt-5.5@high,openai/gpt-5.5@medium,openai/gpt-5.5@low`.
 
 ---
 

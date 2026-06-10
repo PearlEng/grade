@@ -441,6 +441,48 @@ class TestOpenRouterAdapterRun:
         payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
         assert payload["max_tokens"] >= 4096
 
+    # --- Reasoning effort (H-5) ---
+
+    def test_effort_suffix_parsed_into_payload_and_label(self) -> None:
+        """'slug@effort' must send the bare slug + reasoning field, with @effort in model_id."""
+        with _MockHttpx(_MOCK_OR_RESPONSE) as mock_post:
+            adapter = OpenRouterAdapter(model="openai/gpt-5.5@xhigh", api_key="sk-or-test")
+            output = adapter.run(_VALID_TASK, run_index=0)
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert payload["model"] == "openai/gpt-5.5"  # bare slug to the API
+        assert payload["reasoning"] == {"effort": "xhigh"}
+        assert output["model_id"] == "openai/gpt-5.5@xhigh"  # labeled result
+
+    def test_explicit_reasoning_effort_param(self) -> None:
+        """The reasoning_effort constructor arg must work without the @ suffix."""
+        with _MockHttpx(_MOCK_OR_RESPONSE) as mock_post:
+            adapter = OpenRouterAdapter(
+                model="openai/gpt-5.5", api_key="sk-or-test", reasoning_effort="low"
+            )
+            output = adapter.run(_VALID_TASK, run_index=0)
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert payload["reasoning"] == {"effort": "low"}
+        assert output["model_id"] == "openai/gpt-5.5@low"
+
+    def test_reasoning_effort_raises_default_token_budget(self) -> None:
+        """Reasoning runs must default to the larger token budget (reasoning shares it)."""
+        adapter = OpenRouterAdapter(model="openai/gpt-5.5@xhigh", api_key="sk-or-test")
+        assert adapter._max_tokens == OpenRouterAdapter.DEFAULT_REASONING_MAX_TOKENS
+        # Explicit max_tokens still wins.
+        adapter2 = OpenRouterAdapter(
+            model="openai/gpt-5.5@xhigh", api_key="sk-or-test", max_tokens=2048
+        )
+        assert adapter2._max_tokens == 2048
+
+    def test_no_effort_omits_reasoning_field(self) -> None:
+        """Without an effort, the payload must not carry a reasoning field."""
+        with _MockHttpx(_MOCK_OR_RESPONSE) as mock_post:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            output = adapter.run(_VALID_TASK, run_index=0)
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert "reasoning" not in payload
+        assert "@" not in output["model_id"]
+
     def test_token_counts_from_usage(self) -> None:
         """prompt_tokens and completion_tokens must be populated from usage."""
         output = self._run_with_mock()
