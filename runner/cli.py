@@ -41,7 +41,7 @@ Usage examples::
 
     # With the OpenRouter adapter:
     python -m runner.cli --pack outcomes --adapter openrouter \
-        --model anthropic/claude-sonnet-4-5 --runs 5 --out /tmp/grade_out
+        --model anthropic/claude-sonnet-4.6 --runs 5 --out /tmp/grade_out
 """
 
 from __future__ import annotations
@@ -197,7 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="MODEL",
         help=(
             "Model slug or shorthand forwarded to the adapter "
-            "(e.g. 'anthropic/claude-sonnet-4-5', 'claude-sonnet-4-6').  "
+            "(e.g. 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4-6').  "
             "Required for the openrouter adapter; ignored by the stub."
         ),
     )
@@ -252,7 +252,28 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Use a live OpenRouter-backed judge for the rubric (C2) and claim-validation "
             "(C3) judge fallback, instead of the default null judge (0.5). Requires "
-            "OPENROUTER_API_KEY."
+            "OPENROUTER_API_KEY.  Required for the openrouter adapter unless "
+            "--allow-null-judge is passed."
+        ),
+    )
+    parser.add_argument(
+        "--judge-model",
+        default=None,
+        metavar="SLUG",
+        help=(
+            "OpenRouter slug for the judge model (default: "
+            "benchmark.rubrics.judge_client.DEFAULT_JUDGE_MODEL).  "
+            "Only meaningful together with --judge."
+        ),
+    )
+    parser.add_argument(
+        "--allow-null-judge",
+        action="store_true",
+        help=(
+            "Explicitly allow running the openrouter adapter without a live judge.  "
+            "The C2-owned dimensions (40%% of the composite) are then a flat 0.5 "
+            "placeholder and every task is flagged 'null_judge' in the result.  "
+            "Never use this for leaderboard runs."
         ),
     )
     return parser
@@ -300,11 +321,36 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = Path(args.out)
 
     # --- Build judge (optional, live OpenRouter) ---
+    # Guard against silently producing placeholder scorecards: without a live
+    # judge, 40% of the composite is a flat 0.5 for every model.
+    if args.adapter == "openrouter" and not args.judge and not args.allow_null_judge:
+        print(
+            "ERROR: the openrouter adapter requires --judge (live rubric scoring). "
+            "Without it, insight_quality/evidence_linkage/structure_usability are a "
+            "flat 0.5 placeholder.  Pass --allow-null-judge to override for smoke "
+            "tests only.",
+            file=sys.stderr,
+        )
+        return 1
+
+    # Judge selection follows the no-self-judging policy in
+    # benchmark.rubrics.judge_client.select_judge_model: Opus 4.8 judges
+    # everyone except Claude-family candidates, which GPT-5.5 (xhigh) judges
+    # so no judge shares a family with its candidate.
+    # --judge-model overrides the policy.
     judge_client: object | None = None
     if args.judge:
-        from benchmark.rubrics.judge_client import JudgeClient
+        from benchmark.rubrics.judge_client import JudgeClient, select_judge_model
 
-        judge_client = JudgeClient()
+        if args.judge_model:
+            judge_model, judge_effort = args.judge_model, None
+        else:
+            judge_model, judge_effort = select_judge_model(args.model_id or args.model)
+        print(
+            f"Judge: {judge_model}"
+            + (f" (reasoning effort: {judge_effort})" if judge_effort else "")
+        )
+        judge_client = JudgeClient(model=judge_model, reasoning_effort=judge_effort)
 
     # --- Run pack via shared helper ---
     try:

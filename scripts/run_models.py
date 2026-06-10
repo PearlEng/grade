@@ -222,7 +222,28 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Use a live OpenRouter-backed judge (C2/C3 rubric + claim validation). "
             "A fresh JudgeClient is constructed per model so judge costs are isolated. "
-            "Requires OPENROUTER_API_KEY."
+            "Requires OPENROUTER_API_KEY.  Required for the openrouter adapter "
+            "unless --allow-null-judge is passed."
+        ),
+    )
+    parser.add_argument(
+        "--judge-model",
+        default=None,
+        metavar="SLUG",
+        help=(
+            "OpenRouter slug for the judge model (default: "
+            "benchmark.rubrics.judge_client.DEFAULT_JUDGE_MODEL).  "
+            "Only meaningful together with --judge."
+        ),
+    )
+    parser.add_argument(
+        "--allow-null-judge",
+        action="store_true",
+        help=(
+            "Explicitly allow running the openrouter adapter without a live judge.  "
+            "The C2-owned dimensions (40%% of the composite) are then a flat 0.5 "
+            "placeholder and every task is flagged 'null_judge' in the result.  "
+            "Never use this for leaderboard runs."
         ),
     )
     parser.add_argument(
@@ -275,6 +296,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
+    # Guard against silently producing placeholder leaderboards: without a
+    # live judge, 40% of every composite is a flat 0.5.
+    if args.adapter == "openrouter" and not args.judge and not args.allow_null_judge:
+        print(
+            "ERROR: the openrouter adapter requires --judge (live rubric scoring). "
+            "Without it, insight_quality/evidence_linkage/structure_usability are a "
+            "flat 0.5 placeholder for every model and the leaderboard is meaningless. "
+            "Pass --allow-null-judge to override for smoke tests only.",
+            file=sys.stderr,
+        )
+        return 1
+
     out_root = Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
 
@@ -299,14 +332,33 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         # Build a fresh JudgeClient per model (isolates judge cost).
+        # Judge selection follows the no-self-judging policy in
+        # benchmark.rubrics.judge_client.select_judge_model: Opus 4.8 judges
+        # everyone except Claude-family candidates, which GPT-5.5 (xhigh)
+        # judges so no judge shares a family with its candidate.
+        # --judge-model overrides the policy for the whole batch.
+        # A judge construction failure must NOT silently downgrade to the
+        # null judge — that would score this model on placeholder 0.5s while
+        # other models get real judge scores.  Record it as a model failure.
         judge_client: object | None = None
         if args.judge:
             try:
-                from benchmark.rubrics.judge_client import JudgeClient
+                from benchmark.rubrics.judge_client import JudgeClient, select_judge_model
 
-                judge_client = JudgeClient()
+                if args.judge_model:
+                    judge_model, judge_effort = args.judge_model, None
+                else:
+                    judge_model, judge_effort = select_judge_model(model_id)
+                print(
+                    f"  judge: {judge_model}"
+                    + (f" (reasoning effort: {judge_effort})" if judge_effort else ""),
+                    flush=True,
+                )
+                judge_client = JudgeClient(model=judge_model, reasoning_effort=judge_effort)
             except Exception as exc:  # noqa: BLE001
-                print(f"  WARNING: failed to build judge client: {exc}", flush=True)
+                print(f"  FAILED to build judge client: {exc}", flush=True)
+                failed_models.append({"model_id": model_id, "error": f"judge client: {exc}"})
+                continue
 
         try:
             result = run_pack(

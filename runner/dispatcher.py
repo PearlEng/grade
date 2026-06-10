@@ -375,6 +375,14 @@ def run_task(
     per_run_scores: list[DimensionScores] = []
     all_flags: list[str] = []
 
+    # Make null-judge runs visible in the result: when no live judge is
+    # configured, the C2-owned dimensions (insight_quality, evidence_linkage,
+    # structure_usability — 40% of the composite) are a flat 0.5 placeholder.
+    # The flag lands in per_task_scores[].scorer_flags so downstream consumers
+    # (leaderboard, website) can detect and refuse placeholder scorecards.
+    if judge_client is None:
+        all_flags.append("null_judge")
+
     # Resolve fixture contents once (same for all runs of this task).
     fixtures: dict[str, str] = _resolve_fixtures(
         task.get("allowed_inputs", []),

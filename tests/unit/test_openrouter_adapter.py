@@ -623,15 +623,52 @@ class TestJudgeClient:
             score = client.judge("grounding_accuracy", "", _VALID_TASK, self._VALID_OUTPUT)
         assert score == pytest.approx(0.0)
 
-    def test_judge_non_float_response_falls_back_to_zero(self) -> None:
-        """Non-parseable response must fall back to 0.0 without raising."""
+    def test_judge_non_float_response_raises_after_retry(self) -> None:
+        """A non-parseable response must retry once, then raise JudgeScoreError.
+
+        Silently scoring 0.0 would charge a judge-side failure against the
+        candidate model (methodology review finding C-3).
+        """
         mock_body = {"choices": [{"message": {"role": "assistant", "content": "I am unsure."}}]}
+        with _MockHttpx(mock_body) as mock_post:
+            from benchmark.rubrics.judge_client import JudgeClient, JudgeScoreError
+
+            client = JudgeClient(api_key="sk-or-test")
+            with pytest.raises(JudgeScoreError):
+                client.judge("grounding_accuracy", "", _VALID_TASK, self._VALID_OUTPUT)
+        assert mock_post.call_count == 2, "judge must retry exactly once on parse failure"
+
+    def test_judge_extracts_float_from_noisy_response(self) -> None:
+        """A score embedded in prose/markdown must be extracted, not zeroed."""
+        mock_body = {"choices": [{"message": {"role": "assistant", "content": "**Score: 0.85**"}}]}
         with _MockHttpx(mock_body):
             from benchmark.rubrics.judge_client import JudgeClient
 
             client = JudgeClient(api_key="sk-or-test")
             score = client.judge("grounding_accuracy", "", _VALID_TASK, self._VALID_OUTPUT)
-        assert score == pytest.approx(0.0)
+        assert score == pytest.approx(0.85)
+
+    def test_judge_prefers_score_line_over_rationale_numbers(self) -> None:
+        """Numbers quoted in the justification must not be mistaken for the score."""
+        rationale = (
+            "The response cites 135 students and an 82.4% attendance rate, "
+            "both consistent with the gold facts.\nSCORE: 0.9"
+        )
+        mock_body = {"choices": [{"message": {"role": "assistant", "content": rationale}}]}
+        with _MockHttpx(mock_body):
+            from benchmark.rubrics.judge_client import JudgeClient
+
+            client = JudgeClient(api_key="sk-or-test")
+            score = client.judge("grounding_accuracy", "", _VALID_TASK, self._VALID_OUTPUT)
+        assert score == pytest.approx(0.9)
+
+    def test_judge_prompt_requests_rationale_then_score(self) -> None:
+        """The judge prompt must ask for justification and a final SCORE line."""
+        from benchmark.rubrics.judge_client import _build_judge_prompt
+
+        prompt = _build_judge_prompt("insight_quality", "", _VALID_TASK, self._VALID_OUTPUT)
+        assert "SCORE:" in prompt
+        assert "justify" in prompt.lower() or "justification" in prompt.lower()
 
     def test_judge_uses_openrouter_not_anthropic(self) -> None:
         """JudgeClient must call OpenRouter endpoint, not Anthropic directly."""
@@ -666,6 +703,84 @@ class TestJudgeClient:
         assert "guidance" in params
         assert "task" in params
         assert "model_output" in params
+
+
+class TestJudgeSelection:
+    """Tests for the no-self-judging judge-selection policy."""
+
+    def test_non_claude_candidate_gets_opus_judge(self) -> None:
+        """Non-Claude candidates must be judged by the default Opus judge."""
+        from benchmark.rubrics.judge_client import DEFAULT_JUDGE_MODEL, select_judge_model
+
+        for candidate in (
+            "openai/gpt-5.5",
+            "openai/gpt-oss-120b",
+            "google/gemini-3.5-flash",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+            None,
+            "",
+        ):
+            judge, effort = select_judge_model(candidate)
+            assert judge == DEFAULT_JUDGE_MODEL, f"candidate {candidate!r}"
+            assert effort is None
+
+    def test_claude_candidate_gets_gpt_judge(self) -> None:
+        """Claude-family candidates must never be judged by a Claude judge."""
+        from benchmark.rubrics.judge_client import (
+            CLAUDE_CANDIDATE_JUDGE_MODEL,
+            CLAUDE_CANDIDATE_JUDGE_REASONING_EFFORT,
+            select_judge_model,
+        )
+
+        for candidate in (
+            "anthropic/claude-opus-4.8",
+            "claude-opus-4-8",
+            "anthropic/claude-sonnet-4.6",
+            "claude-sonnet-4-6",
+            "anthropic/claude-haiku-4.5",
+            "claude-haiku-4-5",
+        ):
+            judge, effort = select_judge_model(candidate)
+            assert judge == CLAUDE_CANDIDATE_JUDGE_MODEL, f"candidate {candidate!r}"
+            assert effort == CLAUDE_CANDIDATE_JUDGE_REASONING_EFFORT
+            assert "claude" not in judge.lower()
+            assert "anthropic" not in judge.lower()
+
+    def test_reasoning_judge_sends_effort_and_large_budget(self) -> None:
+        """A reasoning-effort judge must send the reasoning field and a large max_tokens."""
+        mock_body = {"choices": [{"message": {"role": "assistant", "content": "0.7"}}]}
+        with _MockHttpx(mock_body) as mock_post:
+            from benchmark.rubrics.judge_client import (
+                REASONING_JUDGE_MAX_TOKENS,
+                JudgeClient,
+            )
+
+            client = JudgeClient(
+                api_key="sk-or-test",
+                model="openai/gpt-5.5",
+                reasoning_effort="xhigh",
+            )
+            score = client.judge("insight_quality", "", _VALID_TASK, TestJudgeClient._VALID_OUTPUT)
+
+        assert score == pytest.approx(0.7)
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert payload["reasoning"] == {"effort": "xhigh"}
+        assert payload["max_tokens"] == REASONING_JUDGE_MAX_TOKENS
+
+    def test_default_judge_omits_reasoning_field(self) -> None:
+        """A non-reasoning judge must not send the reasoning field."""
+        mock_body = {"choices": [{"message": {"role": "assistant", "content": "0.7"}}]}
+        with _MockHttpx(mock_body) as mock_post:
+            from benchmark.rubrics.judge_client import JudgeClient
+
+            client = JudgeClient(api_key="sk-or-test")
+            client.judge("insight_quality", "", _VALID_TASK, TestJudgeClient._VALID_OUTPUT)
+
+        from benchmark.rubrics.judge_client import JUDGE_MAX_TOKENS
+
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert "reasoning" not in payload
+        assert payload["max_tokens"] == JUDGE_MAX_TOKENS
 
 
 # ---------------------------------------------------------------------------

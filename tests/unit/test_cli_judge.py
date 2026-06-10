@@ -33,8 +33,13 @@ def test_main_passes_live_judge_to_run_task(
         raise RuntimeError("stop-after-capture")  # cli.main catches -> returns 1
 
     sentinel = object()
+
+    def fake_judge_client(**kwargs: Any) -> object:
+        captured["judge_kwargs"] = kwargs
+        return sentinel
+
     monkeypatch.setattr(cli, "run_pack", fake_run_pack)
-    monkeypatch.setattr("benchmark.rubrics.judge_client.JudgeClient", lambda: sentinel)
+    monkeypatch.setattr("benchmark.rubrics.judge_client.JudgeClient", fake_judge_client)
 
     rc = cli.main(
         [
@@ -51,6 +56,13 @@ def test_main_passes_live_judge_to_run_task(
     )
     assert rc == 1
     assert captured["judge_client"] is sentinel
+    # No --judge-model and a non-Opus (stub) candidate → policy default judge.
+    from benchmark.rubrics.judge_client import DEFAULT_JUDGE_MODEL
+
+    judge_kwargs = captured["judge_kwargs"]
+    assert isinstance(judge_kwargs, dict)
+    assert judge_kwargs["model"] == DEFAULT_JUDGE_MODEL
+    assert judge_kwargs["reasoning_effort"] is None
 
 
 def test_main_uses_null_judge_without_flag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
