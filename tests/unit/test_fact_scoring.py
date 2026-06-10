@@ -467,9 +467,56 @@ class TestScoreFact:
         assert _sn(106.0, 100.0, "5%") == 0.0
 
     def test_numeric_value_in_limitations_text(self) -> None:
-        """Gold numeric fact should be credited when value appears only in limitations text."""
+        """Gold numeric fact should be credited when value appears only in limitations text.
+
+        The limitation sentence must share claim context ("students") to pass
+        the free-text gate.
+        """
         fact = self._make_fact(numeric_value=135.0, tolerance=0.0)
-        detail = score_fact(fact, {}, [], limitations=["Note: 135 records were processed."])
+        detail = score_fact(fact, {}, [], limitations=["Note: only 135 students were counted."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    # --- Free-text context gate (H-1 false-positive guard) ---
+
+    def test_unrelated_sentence_number_not_credited(self) -> None:
+        """A matching number in a topically unrelated sentence must NOT credit the fact."""
+        fact = self._make_fact(
+            claim="School SCH-003 has 30 enrolled students.",
+            numeric_value=30.0,
+            tolerance=0.0,
+        )
+        # 29.6% would match gold 30 via the 2% count floor (±0.6), but the
+        # sentence shares no content token with the claim.
+        detail = score_fact(fact, {}, ["29.6% of survey responses arrived late."])
+        assert detail.score == 0.0
+        assert detail.matched is False
+
+    def test_related_sentence_number_credited(self) -> None:
+        """The same number IS credited when its sentence shares claim context."""
+        fact = self._make_fact(
+            claim="School SCH-003 has 30 enrolled students.",
+            numeric_value=30.0,
+            tolerance=0.0,
+        )
+        detail = score_fact(fact, {}, ["SCH-003 enrolls 30 students."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_plural_singular_token_normalization(self) -> None:
+        """The gate must treat 'student' and 'students' as the same token."""
+        fact = self._make_fact(
+            claim="The program enrolls 135 students.", numeric_value=135.0, tolerance=0.0
+        )
+        detail = score_fact(fact, {}, ["Each student is counted once: 135 in total."])
+        assert detail.score == 1.0
+
+    def test_structured_metrics_stay_key_agnostic(self) -> None:
+        """The context gate applies to free text only — structured_metrics keys are ignored."""
+        fact = self._make_fact(
+            claim="The program enrolls 135 students.", numeric_value=135.0, tolerance=0.0
+        )
+        detail = score_fact(fact, {"completely_unrelated_key": 135}, [])
         assert detail.score == 1.0
         assert detail.matched is True
 
@@ -489,6 +536,38 @@ class TestScoreFact:
         detail = score_fact(fact, {}, ["Completely different finding."])
         assert detail.score == 0.0
         assert detail.method == "not_found"
+
+    def test_non_numeric_paraphrase_credited_via_token_overlap(self) -> None:
+        """A paraphrase sharing >= 50% of the claim's content tokens must score 1.0 (H-2).
+
+        Under the old behavior the finding was located by substring/overlap but
+        then re-scored with exact string equality — so anything short of a
+        verbatim echo scored 0.0.
+        """
+        claim = "Group counts describe the current active roster."
+        fact = GoldFact("F7", claim, ["groups.csv"], None, None)
+        # Shares content tokens: group, count, describe, active, roster (not verbatim).
+        finding = "These group counts describe only the active roster as of today."
+        detail = score_fact(fact, {}, [finding])
+        assert detail.score == 1.0
+        assert detail.matched is True
+        assert "token_overlap" in detail.method or "text_match" in detail.method
+
+    def test_non_numeric_superstring_finding_credited(self) -> None:
+        """A finding that CONTAINS the claim plus extra words must score 1.0 (H-2)."""
+        claim = "SCH-001 has 6 tutoring groups"
+        fact = GoldFact("F6", claim, ["groups.csv"], None, None)
+        detail = score_fact(fact, {}, [f"As shown in groups.csv, {claim}, the most of any site."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_non_numeric_low_overlap_not_credited(self) -> None:
+        """A finding sharing < 50% of the claim's content tokens must NOT be credited."""
+        claim = "Group counts describe the current active roster snapshot for tutors."
+        fact = GoldFact("F8", claim, ["groups.csv"], None, None)
+        detail = score_fact(fact, {}, ["The roster was updated."])  # 1 of ~7 content tokens
+        assert detail.score == 0.0
+        assert detail.matched is False
 
     # --- Missing value ---
 

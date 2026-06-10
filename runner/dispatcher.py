@@ -298,20 +298,32 @@ def _score_c3_calibration(
 def _compute_composite(
     scores: DimensionScores,
     rubric: dict[str, Any],
+    exclude: tuple[str, ...] = (),
 ) -> float:
     """Compute the weighted composite score from per-dimension scores.
 
     Args:
         scores: Per-dimension scores in [0, 1].
         rubric: Task rubric dict with per-dimension ``weight`` values.
+        exclude: Dimensions to drop from the composite.  The remaining
+            weights are renormalized to sum to 1, so the composite stays on
+            the same [0, 1] scale.  Used for single-run executions where
+            ``consistency`` is trivially 1.0 and would otherwise be free
+            credit.
 
     Returns:
         Weighted sum in [0, 1].
     """
     total = 0.0
+    included_weight = 0.0
     for dim in RUBRIC_DIMENSIONS:
+        if dim in exclude:
+            continue
         weight = float(rubric.get(dim, {}).get("weight", 0.0))
+        included_weight += weight
         total += weight * scores.get(dim, 0.0)
+    if exclude and included_weight > 0:
+        return total / included_weight
     return total
 
 
@@ -418,6 +430,14 @@ def run_task(
         validate_output(output)
         outputs.append(output)
 
+        # Surface truncation: a finish_reason of "length" means the response
+        # hit max_tokens mid-analysis.  Limitations sections come last in
+        # prose responses, so truncation silently deflates calibration scores
+        # — make it visible in the scorecard instead.
+        if output.get("runtime_metadata", {}).get("finish_reason") == "length":
+            if "truncated_output" not in all_flags:
+                all_flags.append("truncated_output")
+
         # --- C1: grounding accuracy via fact scoring ---
         c1_score = _score_c1_grounding(task, output)
 
@@ -450,8 +470,16 @@ def run_task(
             values = [s.get(dim, 0.0) for s in per_run_scores]
             avg_scores[dim] = sum(values) / len(values) if values else 0.0
 
-    # Compute composite.
-    composite = _compute_composite(avg_scores, rubric)
+    # Compute composite.  With a single run, all three C4 sub-metrics
+    # trivially default to 1.0 — that's not measured consistency, it's free
+    # credit (typically 10% of the composite).  Exclude the dimension and
+    # renormalize the remaining weights so single-run composites stay
+    # comparable, and flag the run so downstream consumers can tell.
+    if runs < 2:
+        all_flags.append("consistency_trivial")
+        composite = _compute_composite(avg_scores, rubric, exclude=("consistency",))
+    else:
+        composite = _compute_composite(avg_scores, rubric)
 
     return TaskRunResult(
         task_id=task_id,

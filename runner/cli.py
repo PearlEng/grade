@@ -198,6 +198,9 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Model slug or shorthand forwarded to the adapter "
             "(e.g. 'anthropic/claude-sonnet-4.6', 'claude-sonnet-4-6').  "
+            "Append @<effort> to set a reasoning effort for reasoning models "
+            "(e.g. 'openai/gpt-5.5@xhigh') — the effort is kept in the "
+            "reported model_id so leaderboard rows stay distinct.  "
             "Required for the openrouter adapter; ignored by the stub."
         ),
     )

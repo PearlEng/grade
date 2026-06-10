@@ -19,7 +19,11 @@ A gold fact is credited when its VALUE is actually present in the model output,
    ``tolerance`` of ``gold_fact.numeric_value``.
 2. If not found in ``structured_metrics``, parse numbers out of every string in
    ``key_findings`` and ``limitations`` using :func:`_extract_numbers`.  Credit
-   if any parsed number is within tolerance.
+   if any parsed number is within tolerance — **but only when the containing
+   string shares at least one content token with the gold claim** (the
+   free-text context gate; see :func:`_shares_claim_context`).  This prevents
+   numerically-close values in unrelated sentences from crediting the fact,
+   which would otherwise reward number-dense outputs regardless of relevance.
 
 False-positive guard for numeric matching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -89,10 +93,12 @@ are still rejected:
 
 **Non-numeric gold facts** (``numeric_value`` is None):
 
-Scans ``key_findings`` text (and ``limitations``) for the claim via normalized
-substring matching: at least one token from the claim must appear in at least
-one finding (token-overlap fallback) or the full claim/finding must be a
-substring of the other after lowercasing and whitespace normalization.
+Scans ``key_findings`` text (and ``limitations``) for the claim in two
+stages: (1) normalized substring containment (either direction, after
+lowercasing and whitespace stripping), then (2) token overlap — at least
+:data:`TEXT_FACT_OVERLAP_THRESHOLD` (50%) of the claim's content tokens must
+appear in the entry.  A matching entry scores 1.0; paraphrases are credited
+without requiring a verbatim echo of the claim.
 
 Public API
 ----------
@@ -531,6 +537,89 @@ def _extract_numbers(text: str) -> list[float]:
 # Fact-level dispatcher (value-based matching)
 # ---------------------------------------------------------------------------
 
+#: Common function words excluded when extracting a claim's content tokens for
+#: the free-text context gate.  Deliberately small — only words that carry no
+#: topical signal in benchmark claims.
+_CONTEXT_STOPWORDS: frozenset[str] = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "has",
+        "have",
+        "in",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "per",
+        "than",
+        "that",
+        "the",
+        "their",
+        "this",
+        "to",
+        "was",
+        "were",
+        "with",
+    }
+)
+
+_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9\-]*")
+
+
+def _content_tokens(text: str) -> set[str]:
+    """Extract normalized content tokens from *text* for the context gate.
+
+    Lowercases, splits on non-alphanumerics (keeping in-word hyphens, so IDs
+    like ``sch-001`` survive), drops stopwords, pure numbers, and 1-2 char
+    fragments, and normalizes a trailing plural ``s`` so ``student`` matches
+    ``students``.
+
+    Args:
+        text: Arbitrary text (a gold claim or a model sentence).
+
+    Returns:
+        A set of normalized content tokens (possibly empty).
+    """
+    tokens: set[str] = set()
+    for tok in _TOKEN_PATTERN.findall(text.lower()):
+        if tok in _CONTEXT_STOPWORDS or len(tok) < 3:
+            continue
+        if tok.replace("-", "").replace(".", "").isdigit():
+            continue
+        tokens.add(tok[:-1] if len(tok) > 3 and tok.endswith("s") else tok)
+    return tokens
+
+
+def _shares_claim_context(claim_tokens: set[str], sentence: str) -> bool:
+    """Return True when *sentence* shares at least one content token with the claim.
+
+    This is the free-text false-positive gate: a number found in prose is only
+    credited when its containing sentence is topically related to the gold
+    claim.  When the claim yields no content tokens at all (pathological), the
+    gate is open — gating on nothing would reject everything.
+
+    Args:
+        claim_tokens: Output of :func:`_content_tokens` for the gold claim.
+        sentence: The candidate finding/limitation string.
+
+    Returns:
+        ``True`` if the sentence passes the context gate.
+    """
+    if not claim_tokens:
+        return True
+    return bool(claim_tokens & _content_tokens(sentence))
+
 
 def _find_predicted_numeric(
     gold_value: float,
@@ -538,6 +627,7 @@ def _find_predicted_numeric(
     structured_metrics: dict[str, Any],
     key_findings: list[str],
     limitations: list[str],
+    claim: str = "",
 ) -> tuple[float | None, str]:
     """Search for a numeric value matching *gold_value* within *tolerance*.
 
@@ -546,6 +636,18 @@ def _find_predicted_numeric(
     1. All **numeric** values in ``structured_metrics`` (keys ignored entirely).
     2. Numbers parsed from each string in ``key_findings``.
     3. Numbers parsed from each string in ``limitations``.
+
+    Free-text context gate (false-positive guard)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Numbers parsed from free text (``key_findings`` / ``limitations``) are
+    only credited when the containing string shares at least one content
+    token with the gold *claim* (see :func:`_content_tokens`).  Without the
+    gate, any numerically-close value anywhere in a long prose response —
+    up to 50 sentences — credits the fact, which rewards number-dense
+    outputs regardless of relevance.  ``structured_metrics`` matching stays
+    fully key-agnostic: structured values are deliberate model assertions
+    (and key-name matching was previously found too brittle against real
+    model outputs), so the spam guard targets prose only.
 
     For each candidate value ``N``, two comparisons are attempted:
 
@@ -566,6 +668,8 @@ def _find_predicted_numeric(
         structured_metrics: ``structured_metrics`` dict from the model output.
         key_findings: ``key_findings`` list from the model output.
         limitations: ``limitations`` list from the model output.
+        claim: The gold fact's claim text, used for the free-text context
+            gate.  An empty claim disables the gate (matches old behavior).
 
     Returns:
         ``(matched_value, source_label)`` where *source_label* is one of
@@ -576,6 +680,7 @@ def _find_predicted_numeric(
     """
     # Whether to attempt the /100 normalization (only safe for fraction/rate gold values)
     try_pct_norm: bool = 0 < gold_value <= 1
+    claim_tokens: set[str] = _content_tokens(claim)
 
     def _matches_candidate(candidate: float) -> str:
         """Return '' if no match, 'as_is' or 'pct_norm' for the matching form."""
@@ -594,25 +699,25 @@ def _find_predicted_numeric(
             if match_kind == "pct_norm":
                 return (float(val), "structured_metrics+percent_normalized")
 
-    # 2. Parse numbers from key_findings free text
-    for finding in key_findings:
-        for num in _extract_numbers(finding):
-            match_kind = _matches_candidate(num)
-            if match_kind == "as_is":
-                return (num, "key_findings")
-            if match_kind == "pct_norm":
-                return (num, "key_findings+percent_normalized")
-
-    # 3. Parse numbers from limitations free text
-    for lim in limitations:
-        for num in _extract_numbers(lim):
-            match_kind = _matches_candidate(num)
-            if match_kind == "as_is":
-                return (num, "limitations")
-            if match_kind == "pct_norm":
-                return (num, "limitations+percent_normalized")
+    # 2./3. Parse numbers from free text, gated on claim-context overlap.
+    for text_list, label in ((key_findings, "key_findings"), (limitations, "limitations")):
+        for entry in text_list:
+            if not _shares_claim_context(claim_tokens, entry):
+                continue
+            for num in _extract_numbers(entry):
+                match_kind = _matches_candidate(num)
+                if match_kind == "as_is":
+                    return (num, label)
+                if match_kind == "pct_norm":
+                    return (num, f"{label}+percent_normalized")
 
     return (None, "not_found")
+
+
+#: Minimum share of the claim's content tokens that must appear in a finding
+#: for a non-numeric fact to be credited via token overlap.  Mirrors C3's
+#: ``TOKEN_OVERLAP_THRESHOLD`` in :mod:`benchmark.rubrics.claim_validation`.
+TEXT_FACT_OVERLAP_THRESHOLD: float = 0.5
 
 
 def _find_predicted_text(
@@ -622,9 +727,14 @@ def _find_predicted_text(
 ) -> tuple[str | None, str]:
     """Search for a non-numeric claim in ``key_findings`` and ``limitations``.
 
-    Matching uses normalized substring containment (case-insensitive, leading/
-    trailing whitespace stripped).  The claim is credited when either the claim
-    is a substring of a finding or the finding is a substring of the claim.
+    Two matching stages, applied per entry (substring takes precedence):
+
+    1. **Substring containment** (case-insensitive, whitespace-stripped):
+       the claim is contained in the entry or vice-versa.
+    2. **Token overlap**: at least :data:`TEXT_FACT_OVERLAP_THRESHOLD` of the
+       claim's content tokens (see :func:`_content_tokens`) appear in the
+       entry.  This credits paraphrases — the dominant way real models state
+       non-numeric facts — without requiring a verbatim echo of the claim.
 
     Args:
         claim: The gold fact claim text.
@@ -632,15 +742,22 @@ def _find_predicted_text(
         limitations: ``limitations`` list from the model output.
 
     Returns:
-        ``(matched_text, source_label)`` or ``(None, 'not_found')``.
+        ``(matched_text, source_label)`` or ``(None, 'not_found')`` where
+        *source_label* is ``'key_findings'``, ``'limitations'``, or their
+        ``'+token_overlap'``-suffixed variants.
     """
     claim_lower = claim.strip().lower()
+    claim_tokens = _content_tokens(claim)
 
     for text_list, label in [(key_findings, "key_findings"), (limitations, "limitations")]:
         for entry in text_list:
             entry_lower = entry.strip().lower()
             if claim_lower in entry_lower or entry_lower in claim_lower:
                 return (entry, label)
+            if claim_tokens:
+                overlap = len(claim_tokens & _content_tokens(entry)) / len(claim_tokens)
+                if overlap >= TEXT_FACT_OVERLAP_THRESHOLD:
+                    return (entry, f"{label}+token_overlap")
 
     return (None, "not_found")
 
@@ -654,8 +771,8 @@ def score_fact(
     """Score one gold fact against a model output.
 
     Dispatches to :func:`score_numeric` when ``gold_fact.numeric_value`` is
-    not ``None``, and to :func:`score_exact_match` for non-numeric (string)
-    facts.
+    not ``None``, and to :func:`_find_predicted_text` (substring or token
+    overlap) for non-numeric (string) facts.
 
     For **numeric** facts the effective tolerance is:
 
@@ -670,7 +787,8 @@ def score_fact(
 
     For **non-numeric** facts the predicted value is taken from the first
     ``key_findings`` (or ``limitations``) entry that contains the claim as a
-    substring (or vice-versa); if neither yields a value the fact scores ``0.0``.
+    substring (or vice-versa) or shares >= 50% of the claim's content tokens;
+    if neither yields a value the fact scores ``0.0``.
 
     Args:
         gold_fact: The gold fact to evaluate.
@@ -720,6 +838,7 @@ def score_fact(
             structured_metrics,
             key_findings,
             lims,
+            claim=gold_fact.claim,
         )
 
         if matched_val is None:
@@ -753,13 +872,16 @@ def score_fact(
                 method="not_found",
             )
 
-        s = score_exact_match(matched_text, gold_fact.claim)
+        # The find already verified the match (substring or token overlap) —
+        # score it directly.  Re-checking with exact string equality here
+        # (the old behavior) made non-numeric facts near-impossible to credit
+        # unless the model echoed the claim verbatim.
         return FactDetail(
             fact_id=gold_fact.fact_id,
-            score=s,
-            matched=s == 1.0,
+            score=1.0,
+            matched=True,
             predicted_value=matched_text,
-            method=f"exact_match[{source}]",
+            method=f"text_match[{source}]",
         )
 
 
