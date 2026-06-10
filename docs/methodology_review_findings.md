@@ -102,15 +102,18 @@ values are deliberate model assertions, and key-name matching was previously
 found too brittle against real model outputs. Covered by the new
 context-gate tests in `test_fact_scoring.py`.
 
-### H-2. Non-numeric gold facts effectively require verbatim echo — `OPEN`
-`fact_scoring.py:score_fact` finds a candidate finding by substring
-containment but then scores it with **exact** string equality
-(`score_exact_match`), so a finding that contains the claim plus any other
-words scores 0. The module docstring promises token-overlap matching that is
-not implemented. Non-numeric facts are near-universal misses for all models.
+### H-2. Non-numeric gold facts effectively require verbatim echo — `FIXED`
+`fact_scoring.py:score_fact` found a candidate finding by substring
+containment but then scored it with **exact** string equality, so a finding
+containing the claim plus any other words scored 0 — non-numeric facts were
+near-universal misses.
 
-**Suggested fix:** score the substring/token-overlap match directly (like
-C3's `TOKEN_OVERLAP_THRESHOLD` approach) instead of exact equality.
+**Fix applied:** the match is now scored directly. Stage 1 is substring
+containment (either direction); stage 2 credits paraphrases when >= 50% of
+the claim's content tokens appear in the entry
+(`TEXT_FACT_OVERLAP_THRESHOLD`, mirroring C3). Match provenance is recorded
+in the `method` label (`text_match[key_findings+token_overlap]` etc.). The
+doc/code mismatch (docstring promised token overlap) is resolved.
 
 ### H-3. `runs=1` gives every model a free 10% (consistency) — `OPEN`
 All three consistency sub-metrics default to 1.0 with a single run. The

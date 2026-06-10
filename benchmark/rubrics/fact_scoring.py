@@ -93,10 +93,12 @@ are still rejected:
 
 **Non-numeric gold facts** (``numeric_value`` is None):
 
-Scans ``key_findings`` text (and ``limitations``) for the claim via normalized
-substring matching: at least one token from the claim must appear in at least
-one finding (token-overlap fallback) or the full claim/finding must be a
-substring of the other after lowercasing and whitespace normalization.
+Scans ``key_findings`` text (and ``limitations``) for the claim in two
+stages: (1) normalized substring containment (either direction, after
+lowercasing and whitespace stripping), then (2) token overlap — at least
+:data:`TEXT_FACT_OVERLAP_THRESHOLD` (50%) of the claim's content tokens must
+appear in the entry.  A matching entry scores 1.0; paraphrases are credited
+without requiring a verbatim echo of the claim.
 
 Public API
 ----------
@@ -712,6 +714,12 @@ def _find_predicted_numeric(
     return (None, "not_found")
 
 
+#: Minimum share of the claim's content tokens that must appear in a finding
+#: for a non-numeric fact to be credited via token overlap.  Mirrors C3's
+#: ``TOKEN_OVERLAP_THRESHOLD`` in :mod:`benchmark.rubrics.claim_validation`.
+TEXT_FACT_OVERLAP_THRESHOLD: float = 0.5
+
+
 def _find_predicted_text(
     claim: str,
     key_findings: list[str],
@@ -719,9 +727,14 @@ def _find_predicted_text(
 ) -> tuple[str | None, str]:
     """Search for a non-numeric claim in ``key_findings`` and ``limitations``.
 
-    Matching uses normalized substring containment (case-insensitive, leading/
-    trailing whitespace stripped).  The claim is credited when either the claim
-    is a substring of a finding or the finding is a substring of the claim.
+    Two matching stages, applied per entry (substring takes precedence):
+
+    1. **Substring containment** (case-insensitive, whitespace-stripped):
+       the claim is contained in the entry or vice-versa.
+    2. **Token overlap**: at least :data:`TEXT_FACT_OVERLAP_THRESHOLD` of the
+       claim's content tokens (see :func:`_content_tokens`) appear in the
+       entry.  This credits paraphrases — the dominant way real models state
+       non-numeric facts — without requiring a verbatim echo of the claim.
 
     Args:
         claim: The gold fact claim text.
@@ -729,15 +742,22 @@ def _find_predicted_text(
         limitations: ``limitations`` list from the model output.
 
     Returns:
-        ``(matched_text, source_label)`` or ``(None, 'not_found')``.
+        ``(matched_text, source_label)`` or ``(None, 'not_found')`` where
+        *source_label* is ``'key_findings'``, ``'limitations'``, or their
+        ``'+token_overlap'``-suffixed variants.
     """
     claim_lower = claim.strip().lower()
+    claim_tokens = _content_tokens(claim)
 
     for text_list, label in [(key_findings, "key_findings"), (limitations, "limitations")]:
         for entry in text_list:
             entry_lower = entry.strip().lower()
             if claim_lower in entry_lower or entry_lower in claim_lower:
                 return (entry, label)
+            if claim_tokens:
+                overlap = len(claim_tokens & _content_tokens(entry)) / len(claim_tokens)
+                if overlap >= TEXT_FACT_OVERLAP_THRESHOLD:
+                    return (entry, f"{label}+token_overlap")
 
     return (None, "not_found")
 
@@ -751,8 +771,8 @@ def score_fact(
     """Score one gold fact against a model output.
 
     Dispatches to :func:`score_numeric` when ``gold_fact.numeric_value`` is
-    not ``None``, and to :func:`score_exact_match` for non-numeric (string)
-    facts.
+    not ``None``, and to :func:`_find_predicted_text` (substring or token
+    overlap) for non-numeric (string) facts.
 
     For **numeric** facts the effective tolerance is:
 
@@ -767,7 +787,8 @@ def score_fact(
 
     For **non-numeric** facts the predicted value is taken from the first
     ``key_findings`` (or ``limitations``) entry that contains the claim as a
-    substring (or vice-versa); if neither yields a value the fact scores ``0.0``.
+    substring (or vice-versa) or shares >= 50% of the claim's content tokens;
+    if neither yields a value the fact scores ``0.0``.
 
     Args:
         gold_fact: The gold fact to evaluate.
@@ -851,13 +872,16 @@ def score_fact(
                 method="not_found",
             )
 
-        s = score_exact_match(matched_text, gold_fact.claim)
+        # The find already verified the match (substring or token overlap) —
+        # score it directly.  Re-checking with exact string equality here
+        # (the old behavior) made non-numeric facts near-impossible to credit
+        # unless the model echoed the claim verbatim.
         return FactDetail(
             fact_id=gold_fact.fact_id,
-            score=s,
-            matched=s == 1.0,
+            score=1.0,
+            matched=True,
             predicted_value=matched_text,
-            method=f"exact_match[{source}]",
+            method=f"text_match[{source}]",
         )
 
 

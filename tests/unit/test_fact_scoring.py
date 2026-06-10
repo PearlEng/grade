@@ -537,6 +537,38 @@ class TestScoreFact:
         assert detail.score == 0.0
         assert detail.method == "not_found"
 
+    def test_non_numeric_paraphrase_credited_via_token_overlap(self) -> None:
+        """A paraphrase sharing >= 50% of the claim's content tokens must score 1.0 (H-2).
+
+        Under the old behavior the finding was located by substring/overlap but
+        then re-scored with exact string equality — so anything short of a
+        verbatim echo scored 0.0.
+        """
+        claim = "Group counts describe the current active roster."
+        fact = GoldFact("F7", claim, ["groups.csv"], None, None)
+        # Shares content tokens: group, count, describe, active, roster (not verbatim).
+        finding = "These group counts describe only the active roster as of today."
+        detail = score_fact(fact, {}, [finding])
+        assert detail.score == 1.0
+        assert detail.matched is True
+        assert "token_overlap" in detail.method or "text_match" in detail.method
+
+    def test_non_numeric_superstring_finding_credited(self) -> None:
+        """A finding that CONTAINS the claim plus extra words must score 1.0 (H-2)."""
+        claim = "SCH-001 has 6 tutoring groups"
+        fact = GoldFact("F6", claim, ["groups.csv"], None, None)
+        detail = score_fact(fact, {}, [f"As shown in groups.csv, {claim}, the most of any site."])
+        assert detail.score == 1.0
+        assert detail.matched is True
+
+    def test_non_numeric_low_overlap_not_credited(self) -> None:
+        """A finding sharing < 50% of the claim's content tokens must NOT be credited."""
+        claim = "Group counts describe the current active roster snapshot for tutors."
+        fact = GoldFact("F8", claim, ["groups.csv"], None, None)
+        detail = score_fact(fact, {}, ["The roster was updated."])  # 1 of ~7 content tokens
+        assert detail.score == 0.0
+        assert detail.matched is False
+
     # --- Missing value ---
 
     def test_missing_value_scores_zero(self) -> None:
