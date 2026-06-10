@@ -46,7 +46,7 @@ export OPENROUTER_API_KEY="sk-or-..."
 python -m runner.cli \
     --pack operations \
     --adapter openrouter \
-    --model anthropic/claude-sonnet-4-5 \
+    --model anthropic/claude-sonnet-4.6 \
     --runs 5 \
     --out /tmp/grade_real
 ```

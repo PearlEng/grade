@@ -95,13 +95,13 @@ export OPENROUTER_API_KEY="sk-or-..."
 python -m runner.cli \
     --pack operations \
     --adapter openrouter \
-    --model anthropic/claude-sonnet-4-5 \
+    --model anthropic/claude-sonnet-4.6 \
     --runs 5 \
     --out /tmp/grade_real_out
 ```
 
 The `--model` flag accepts any model slug available on OpenRouter, for
-example `openai/gpt-4o` or `anthropic/claude-opus-4-7`.
+example `openai/gpt-5.5` or `anthropic/claude-opus-4.8`.
 
 ---
 
