@@ -557,6 +557,15 @@ class OpenRouterAdapter:
         timestamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         body: dict[str, Any] = response.json()
+        # OpenRouter can return an error object with HTTP 200 (e.g. context
+        # length exceeded, provider moderation) — surface its message instead
+        # of crashing with KeyError('choices').
+        if "choices" not in body or not body["choices"]:
+            err = body.get("error") or {}
+            raise RuntimeError(
+                f"OpenRouter returned no choices for model {self._model!r}: "
+                f"{err.get('message') or json.dumps(body)[:300]}"
+            )
         choice = body["choices"][0]
         raw_text: str = choice["message"]["content"] or ""
         finish_reason: str | None = choice.get("finish_reason")
