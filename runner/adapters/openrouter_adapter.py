@@ -94,6 +94,85 @@ def _get_openrouter_timeout() -> float:
     return DEFAULT_OPENROUTER_TIMEOUT
 
 
+#: Default number of HTTP attempts per call (1 initial + retries).
+#: Override via the ``GRADE_OPENROUTER_RETRIES`` environment variable.
+DEFAULT_OPENROUTER_ATTEMPTS: int = 3
+
+#: HTTP statuses treated as transient and retried with backoff.
+RETRYABLE_STATUS_CODES: tuple[int, ...] = (429, 500, 502, 503, 504)
+
+
+def _get_openrouter_attempts() -> int:
+    """Return the configured number of HTTP attempts per OpenRouter call.
+
+    Reads ``GRADE_OPENROUTER_RETRIES``.  Falls back to
+    :data:`DEFAULT_OPENROUTER_ATTEMPTS` when unset or unparseable.
+
+    Returns:
+        Attempt count as an :class:`int` (minimum 1).
+    """
+    raw = os.environ.get("GRADE_OPENROUTER_RETRIES", "")
+    if raw:
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            pass
+    return DEFAULT_OPENROUTER_ATTEMPTS
+
+
+def _post_with_retries(
+    httpx_mod: Any,
+    url: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    timeout: float,
+) -> Any:
+    """POST with retries on transient transport errors and retryable statuses.
+
+    Mid-stream connection drops (``peer closed connection``), connect/read
+    errors, and 429/5xx responses are retried with exponential backoff
+    (1s, 2s, ... capped at 8s).  Timeouts are NOT retried — each attempt
+    already waits the full configured timeout, so callers keep their
+    existing fail-fast timeout semantics (raise / bump
+    ``GRADE_OPENROUTER_TIMEOUT`` instead).
+
+    Args:
+        httpx_mod: The imported ``httpx`` module (passed in because the
+            adapter lazy-imports it).
+        url: Request URL.
+        headers: Request headers.
+        payload: JSON body.
+        timeout: Per-attempt timeout in seconds.
+
+    Returns:
+        The ``httpx.Response`` of the first successful (or non-retryable)
+        attempt.
+
+    Raises:
+        RuntimeError: When transport errors persist through all attempts.
+        httpx.TimeoutException: Propagated unretried.
+    """
+    attempts = _get_openrouter_attempts()
+    response: Any = None
+    for attempt in range(attempts):
+        try:
+            response = httpx_mod.post(url, headers=headers, json=payload, timeout=timeout)
+        except httpx_mod.TimeoutException:
+            raise
+        except httpx_mod.TransportError as exc:
+            if attempt < attempts - 1:
+                time.sleep(min(2**attempt, 8))
+                continue
+            raise RuntimeError(
+                f"OpenRouter transport error persisted through {attempts} attempts: {exc}"
+            ) from exc
+        if response.status_code in RETRYABLE_STATUS_CODES and attempt < attempts - 1:
+            time.sleep(min(2**attempt, 8))
+            continue
+        return response
+    return response
+
+
 #: Seed model shorthand → OpenRouter model slug mapping.
 #:
 #: These are the launch leaderboard models.  Pass a shorthand string as the
@@ -540,11 +619,12 @@ class OpenRouterAdapter:
             payload["reasoning"] = {"effort": self._reasoning_effort}
 
         t_start = time.monotonic()
-        response = httpx.post(
+        response = _post_with_retries(
+            httpx,
             f"{OPENROUTER_BASE_URL}/chat/completions",
             headers=headers,
-            json=payload,
-            timeout=120.0,
+            payload=payload,
+            timeout=_get_openrouter_timeout(),
         )
         latency_ms = (time.monotonic() - t_start) * 1000.0
 
@@ -790,7 +870,8 @@ def post_chat_completion(
     timeout = _get_openrouter_timeout()
 
     try:
-        response = httpx.post(
+        response = _post_with_retries(
+            httpx,
             f"{OPENROUTER_BASE_URL}/chat/completions",
             headers={
                 "Authorization": f"Bearer {key}",
@@ -798,7 +879,7 @@ def post_chat_completion(
                 "HTTP-Referer": HTTP_REFERER,
                 "X-Title": X_TITLE,
             },
-            json=payload,
+            payload=payload,
             timeout=timeout,
         )
     except httpx.TimeoutException as exc:
