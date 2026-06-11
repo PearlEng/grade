@@ -525,6 +525,29 @@ class TestOpenRouterAdapterRun:
                 status_code=429,
             )
 
+    def test_error_body_with_200_surfaces_provider_message(self) -> None:
+        """An HTTP-200 body without choices must raise with the provider's error message.
+
+        OpenRouter returns error objects with HTTP 200 for some failures
+        (e.g. context length exceeded) — these must not crash with
+        KeyError('choices').
+        """
+        with pytest.raises(RuntimeError, match="maximum context length"):
+            self._run_with_mock(
+                mock_body={
+                    "error": {
+                        "message": "This endpoint's maximum context length is 131072 tokens.",
+                        "code": 400,
+                    }
+                },
+                status_code=200,
+            )
+
+    def test_empty_choices_list_raises_runtime_error(self) -> None:
+        """An HTTP-200 body with an empty choices list must raise RuntimeError."""
+        with pytest.raises(RuntimeError, match="no choices"):
+            self._run_with_mock(mock_body={"choices": []}, status_code=200)
+
     def test_missing_api_key_raises_environment_error(self, monkeypatch: Any) -> None:
         """Missing API key (no env var, no constructor arg) must raise EnvironmentError."""
         monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
