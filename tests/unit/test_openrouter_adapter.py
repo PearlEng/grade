@@ -145,8 +145,25 @@ def _inject_mock_httpx(mock_post: MagicMock) -> ModuleType:
     fake_httpx.post = mock_post  # type: ignore[attr-defined]
     # Provide a minimal Client stub so _make_openrouter_http_client doesn't fail.
     fake_httpx.Client = MagicMock()  # type: ignore[attr-defined]
+    # Exception hierarchy mirroring httpx (TimeoutException < TransportError)
+    # so the adapter's retry/except clauses resolve against the fake module.
+    fake_httpx.TransportError = _FakeTransportError  # type: ignore[attr-defined]
+    fake_httpx.TimeoutException = _FakeTimeoutException  # type: ignore[attr-defined]
+    fake_httpx.RemoteProtocolError = _FakeRemoteProtocolError  # type: ignore[attr-defined]
     sys.modules["httpx"] = fake_httpx
     return fake_httpx
+
+
+class _FakeTransportError(Exception):
+    """Stand-in for ``httpx.TransportError`` in the fake module."""
+
+
+class _FakeTimeoutException(_FakeTransportError):
+    """Stand-in for ``httpx.TimeoutException`` (subclasses TransportError)."""
+
+
+class _FakeRemoteProtocolError(_FakeTransportError):
+    """Stand-in for ``httpx.RemoteProtocolError`` (peer closed connection)."""
 
 
 def _remove_mock_httpx() -> None:
@@ -524,6 +541,88 @@ class TestOpenRouterAdapterRun:
                 mock_body={"error": {"message": "Rate limit"}},
                 status_code=429,
             )
+
+    def test_error_body_with_200_surfaces_provider_message(self) -> None:
+        """An HTTP-200 body without choices must raise with the provider's error message.
+
+        OpenRouter returns error objects with HTTP 200 for some failures
+        (e.g. context length exceeded) — these must not crash with
+        KeyError('choices').
+        """
+        with pytest.raises(RuntimeError, match="maximum context length"):
+            self._run_with_mock(
+                mock_body={
+                    "error": {
+                        "message": "This endpoint's maximum context length is 131072 tokens.",
+                        "code": 400,
+                    }
+                },
+                status_code=200,
+            )
+
+    def test_empty_choices_list_raises_runtime_error(self) -> None:
+        """An HTTP-200 body with an empty choices list must raise RuntimeError."""
+        with pytest.raises(RuntimeError, match="no choices"):
+            self._run_with_mock(mock_body={"choices": []}, status_code=200)
+
+    def test_transient_transport_error_is_retried(self, monkeypatch: Any) -> None:
+        """A mid-stream connection drop must be retried and then succeed.
+
+        First post() raises RemoteProtocolError ('peer closed connection'),
+        second returns a valid response — run() must succeed with 2 calls.
+        """
+        monkeypatch.setattr("time.sleep", lambda _s: None)
+        good = _make_mock_httpx_post(_MOCK_OR_RESPONSE)()  # a response object
+        mock_post = MagicMock(side_effect=[_FakeRemoteProtocolError("peer closed"), good])
+        _inject_mock_httpx(mock_post)
+        try:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            output = adapter.run(_VALID_TASK, run_index=0)
+        finally:
+            _remove_mock_httpx()
+        assert output["task_id"] == _VALID_TASK["task_id"]
+        assert mock_post.call_count == 2
+
+    def test_persistent_transport_error_raises_after_attempts(self, monkeypatch: Any) -> None:
+        """Transport errors on every attempt must raise RuntimeError, not crash opaquely."""
+        monkeypatch.setattr("time.sleep", lambda _s: None)
+        mock_post = MagicMock(side_effect=_FakeRemoteProtocolError("peer closed"))
+        _inject_mock_httpx(mock_post)
+        try:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            with pytest.raises(RuntimeError, match="transport error persisted"):
+                adapter.run(_VALID_TASK, run_index=0)
+        finally:
+            _remove_mock_httpx()
+        assert mock_post.call_count == 3  # DEFAULT_OPENROUTER_ATTEMPTS
+
+    def test_retryable_status_is_retried(self, monkeypatch: Any) -> None:
+        """A 502 response must be retried; a subsequent 200 succeeds."""
+        monkeypatch.setattr("time.sleep", lambda _s: None)
+        bad = _make_mock_httpx_post({"error": {"message": "bad gateway"}}, status_code=502)()
+        good = _make_mock_httpx_post(_MOCK_OR_RESPONSE)()
+        mock_post = MagicMock(side_effect=[bad, good])
+        _inject_mock_httpx(mock_post)
+        try:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            output = adapter.run(_VALID_TASK, run_index=0)
+        finally:
+            _remove_mock_httpx()
+        assert output["task_id"] == _VALID_TASK["task_id"]
+        assert mock_post.call_count == 2
+
+    def test_timeout_is_not_retried(self, monkeypatch: Any) -> None:
+        """Timeouts must propagate unretried (each attempt already waits in full)."""
+        monkeypatch.setattr("time.sleep", lambda _s: None)
+        mock_post = MagicMock(side_effect=_FakeTimeoutException("timed out"))
+        _inject_mock_httpx(mock_post)
+        try:
+            adapter = OpenRouterAdapter(model="anthropic/claude-sonnet-4.6", api_key="sk-or-test")
+            with pytest.raises(_FakeTimeoutException):
+                adapter.run(_VALID_TASK, run_index=0)
+        finally:
+            _remove_mock_httpx()
+        assert mock_post.call_count == 1
 
     def test_missing_api_key_raises_environment_error(self, monkeypatch: Any) -> None:
         """Missing API key (no env var, no constructor arg) must raise EnvironmentError."""
