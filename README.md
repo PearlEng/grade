@@ -223,6 +223,40 @@ If you're a researcher, AI developer, or education technologist and want to disc
 
 ---
 
+## Citing GRADE
+
+If you use GRADE in your research, please cite the repository:
+
+```bibtex
+@software{pearl2026grade,
+  author       = {Pearl},
+  title        = {{GRADE}: Grounded Reasoning \& Analysis for Data in Education},
+  year         = {2026},
+  publisher    = {GitHub},
+  version      = {0.1.0},
+  url          = {https://github.com/PearlEng/grade},
+  note         = {Open benchmark for AI evaluation in education analytics}
+}
+```
+
+A Zenodo DOI for stable versioned citation will be added at the v0.1.0 release. Once available, prefer the DOI-based entry:
+
+```bibtex
+@software{pearl2026grade,
+  author       = {Pearl},
+  title        = {{GRADE}: Grounded Reasoning \& Analysis for Data in Education},
+  year         = {2026},
+  publisher    = {Zenodo},
+  version      = {0.1.0},
+  doi          = {10.5281/zenodo.XXXXXXX},
+  url          = {https://doi.org/10.5281/zenodo.XXXXXXX}
+}
+```
+
+GitHub also provides a formatted citation via the **Cite this repository** button in the sidebar (powered by [`CITATION.cff`](CITATION.cff)).
+
+---
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
