@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use GRADE in your research, please cite it as below."
+type: software
+title: "GRADE: Grounded Reasoning & Analysis for Data in Education"
+abstract: >
+  GRADE is an open benchmark that measures how accurately and usefully AI
+  systems analyze education program data. It evaluates models across five
+  tracks — grounded retrieval, trend interpretation, operational coaching,
+  equity and subgroup analysis, and research reasoning — using synthetic
+  fixture packs with deterministic ground truth. Scoring combines
+  deterministic fact-checking with cross-family LLM judging to eliminate
+  house-style bias.
+authors:
+  - name: "Pearl"
+    website: "https://tutorwithpearl.com"
+repository-code: "https://github.com/PearlEng/grade"
+url: "https://tutorwithpearl.com"
+license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-06-12"
+keywords:
+  - benchmark
+  - education
+  - llm-evaluation
+  - ai-evaluation
+  - nlp
+  - grounding
+  - education-analytics
