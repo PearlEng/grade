@@ -20,25 +20,82 @@ General-purpose benchmarks don't measure this. A model can excel at broad reason
 
 ## Leaderboard
 
-Results on the operations pack (11 tasks, 5 runs per task). Full 26-task results in progress.
+Official run, June 10–12 2026. Three packs: **operations** (11 tasks × 5 runs),
+**outcomes** (5 tasks × 1 run), **equity research** (10 tasks × 1 run). All rows
+ran with a 65,536-token completion budget so reasoning never crowds out the
+answer; judging is cross-family (no judge scores its own model family). Full
+caveats in [docs/methodology.md](docs/methodology.md); run notes in
+[RUN_FINDINGS.md](RUN_FINDINGS.md).
 
-| Rank | Model | Composite | Grounding | Insight | Evidence | Calibration | Consistency |
-|------|-------|:---------:|:---------:|:-------:|:--------:|:-----------:|:-----------:|
-| 1 | `openai/gpt-5.5@high` | **68.3%** | 98.0% | 35.2% | 85.8% | 19.6% | 64.5% |
-| 2 | `openai/gpt-5.5@medium` | **64.4%** | 87.5% | 41.7% | 75.3% | 18.0% | 66.6% |
-| 3 | `openai/gpt-5.5@low` | **52.4%** | 62.4% | 35.7% | 59.3% | 23.2% | 64.2% |
-| 4 | `anthropic/claude-opus-4.8` | **41.9%** | 45.5% | 30.1% | 31.2% | 27.3% | 75.5% |
-| 5 | `anthropic/claude-haiku-4.5` | **37.9%** | 47.9% | 22.0% | 20.6% | 20.5% | 70.7% |
-| 6 | `anthropic/claude-sonnet-4.6` | **37.5%** | 43.3% | 27.8% | 23.9% | 17.5% | 74.5% |
-| 7 | `openai/gpt-oss-120b` | **25.2%** | 22.2% | 7.7% | 18.7% | 25.6% | 74.2% |
-| 8 | `google/gemini-3.1-pro-preview` | **23.9%** | 23.9% | 7.9% | 17.6% | 27.4% | 60.3% |
-| 9 | `nvidia/nemotron-3-ultra-550b-a55b` | **21.7%** | 22.4% | 5.4% | 19.6% | 13.4% | 70.6% |
-| 10 | `google/gemini-3.5-flash` | **17.1%** | 11.1% | 6.2% | 8.9% | 27.8% | 60.3% |
+### Operations (program-data analysis, 5 repetitions)
 
-> Composite = 35% Grounding + 20% Insight + 15% Evidence + 15% Calibration + 10% Consistency + 5% Structure.
-> Scores are computed on ground-truth-validated synthetic data. See [docs/methodology.md](docs/methodology.md) for caveats on partial runs and cross-family judging.
+| Rank | Model | Composite | Grounding | Insight | Evidence | Calibration | Consistency | Coverage |
+|------|-------|:---------:|:---------:|:-------:|:--------:|:-----------:|:-----------:|:--------:|
+| 1 | `openai/gpt-5.5@xhigh` | **66.9%** | 91.1% | 45.0% | 77.5% | 22.4% | 63.0% | full |
+| 2 | `openai/gpt-5.5@high` | **65.4%** | 87.7% | 46.3% | 76.9% | 18.5% | 62.9% | full |
+| 3 | `openai/gpt-5.5@medium` | **64.9%** | 88.6% | 44.2% | 73.4% | 17.8% | 66.2% | full |
+| 4 | `google/gemini-3.1-pro-preview` | **63.5%** | 79.2% | 45.0% | 76.9% | 31.2% | 61.3% | 8/11 [1] |
+| 5 | `google/gemini-3.5-flash` | **61.0%** | 79.5% | 44.7% | 69.4% | 23.6% | 61.2% | 10/11 [1] |
+| 6 | `openai/gpt-5.5@low` | **52.4%** | 62.4% | 35.7% | 59.3% | 23.2% | 64.2% | full |
+| 7 | `anthropic/claude-opus-4.8` | **41.9%** | 45.5% | 30.1% | 31.2% | 27.3% | 75.5% | full |
+| 8 | `anthropic/claude-sonnet-4.6` | **38.3%** | 42.6% | 29.2% | 27.7% | 18.3% | 76.7% | full |
+| 9 | `anthropic/claude-haiku-4.5` | **37.9%** | 47.9% | 22.0% | 20.6% | 20.5% | 70.7% | full |
+| 10 | `openai/gpt-oss-120b` | **25.2%** | 22.2% | 7.7% | 18.7% | 25.6% | 74.2% | 3/11 DNF [2] |
+| 11 | `nvidia/nemotron-3-ultra-550b-a55b` | **25.1%** | 30.2% | 7.3% | 26.9% | 8.3% | 67.6% | full |
 
-**Key finding:** The hardest dimensions across every model are calibration (acknowledging data limitations and avoiding unsupported causal claims) and insight quality (interpreting signals rather than reciting numbers). Grounding accuracy varies most widely — the gap between GPT-5.5@high (98%) and Gemini 3.5 Flash (11%) on the same tasks reflects a real difference in whether models correctly read numbers from structured CSVs.
+> [1] Remaining tasks in flight at publication; composite covers listed tasks only.
+> [2] `gpt-oss-120b`'s 131k context cannot fit the ~190k-token data payloads on 8 of 11 tasks — reported as a finding, not ranked competitively.
+
+### Outcomes (trend analysis, single run)
+
+| Rank | Model | Composite | Grounding | Calibration | Model Cost |
+|------|-------|:---------:|:---------:|:-----------:|:----------:|
+| 1 | `openai/gpt-5.5@low` | **90.1%** | 100.0% | 59.3% | $0.17 |
+| 2 | `openai/gpt-5.5@medium` | **90.0%** | 100.0% | 55.7% | $0.21 |
+| 3 | `nvidia/nemotron-3-ultra-550b-a55b` | **88.3%** | 100.0% | 45.8% | $0.04 |
+| 4 | `openai/gpt-5.5@xhigh` | **86.9%** | 100.0% | 45.0% | $0.67 |
+| 5 | `openai/gpt-5.5@high` | **86.6%** | 100.0% | 39.2% | $0.51 |
+| 6 | `anthropic/claude-opus-4.8` | **86.2%** | 100.0% | 46.0% | $0.30 |
+| 7 | `openai/gpt-oss-120b` | **84.0%** | 100.0% | 39.9% | $0.00 |
+| 8 | `anthropic/claude-sonnet-4.6` | **83.0%** | 100.0% | 43.6% | $0.14 |
+| 9 | `google/gemini-3.5-flash` | **81.2%** | 100.0% | 29.9% | $0.17 |
+| 10 | `google/gemini-3.1-pro-preview` | **80.5%** | 100.0% | 46.1% | $0.17 |
+| 11 | `anthropic/claude-haiku-4.5` | **76.7%** | 90.0% | 43.8% | $0.05 |
+
+### Equity research (subgroup & research reasoning, single run)
+
+| Rank | Model | Composite | Grounding | Calibration | Model Cost |
+|------|-------|:---------:|:---------:|:-----------:|:----------:|
+| 1 | `openai/gpt-5.5@medium` | **83.0%** | 79.8% | 58.9% | $1.10 |
+| 2 | `openai/gpt-5.5@xhigh` | **82.8%** | 81.5% | 53.1% | $2.45 |
+| 3 | `nvidia/nemotron-3-ultra-550b-a55b` | **81.8%** | 78.5% | 52.8% | $0.10 |
+| 4 | `openai/gpt-5.5@high` | **81.1%** | 77.7% | 52.8% | $1.97 |
+| 5 | `openai/gpt-5.5@low` | **80.6%** | 76.0% | 58.3% | $0.64 |
+| 6 | `anthropic/claude-opus-4.8` | **75.4%** | 69.8% | 49.7% | $0.95 |
+| 7 | `google/gemini-3.1-pro-preview` | **73.8%** | 67.8% | 48.3% | $0.59 |
+| 8 | `google/gemini-3.5-flash` | **73.0%** | 67.8% | 39.2% | $0.53 |
+| 9 | `openai/gpt-oss-120b` | **70.0%** | 62.3% | 32.8% | $0.01 |
+| 10 | `anthropic/claude-sonnet-4.6` | **68.7%** | 55.8% | 42.8% | $0.47 |
+| 11 | `anthropic/claude-haiku-4.5` | **66.9%** | 66.0% | 35.8% | $0.17 |
+
+> Composite = 35% Grounding + 20% Insight + 15% Evidence + 15% Calibration + 10% Consistency + 5% Structure (consistency excluded and weights renormalized on single-run packs).
+
+**Key findings.** (1) *Reasoning effort pays only where tasks are hard:* GPT-5.5's
+effort curve rises steeply from low→medium on heavy data analysis
+(52%→65%) then saturates, and **inverts** on light trend summaries (low beats
+xhigh). (2) *Scores are envelope-relative:* under a 4k token budget the
+default-thinking models (Gemini, Nemotron) score near the floor because
+reasoning consumes the budget before any answer appears — the same models are
+mid-pack or better at 64k. Nemotron still exhausts even 64k on the largest
+tasks (it reasons by exhaustive enumeration), so its operations score reflects
+budget economics, not analytical ability — it places top-three on both smaller
+packs. (3) *Accuracy and stability trade off:* GPT-5.5 leads grounding accuracy
+while Claude models lead run-to-run consistency; Claude Haiku 4.5 delivers
+~90% of Opus's operations composite at ~18% of its cost. (4) *Calibration is
+universally weak* (18–31%): no model reliably acknowledges data limitations
+without prompting — the clearest open problem this benchmark surfaces.
+
+---
 
 ---
 
